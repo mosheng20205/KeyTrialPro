@@ -85,6 +85,27 @@ CREATE TABLE IF NOT EXISTS license_bindings (
     CONSTRAINT fk_binding_license FOREIGN KEY (license_id) REFERENCES licenses(id)
 );
 
+-- Upgrade note:
+-- Versions before the 2026-04-21 activation fix could leave license_bindings.license_id
+-- pointing at an older license when the same machine re-activated with a new card key.
+-- The server-side fix now updates license_id and machine_hash during the
+-- INSERT ... ON DUPLICATE KEY UPDATE path in LicenseService::activateLicense().
+--
+-- For upgraded production databases, verify bindings with:
+--   SELECT id, product_id, license_id, machine_id, machine_hash, status
+--   FROM license_bindings
+--   WHERE product_id = <product_id> AND machine_id = '<machine_id>';
+--
+-- If a row still points to an older license, repair it with:
+--   UPDATE license_bindings
+--   SET license_id = <new_license_id>,
+--       machine_hash = '<machine_hash>',
+--       status = 'active',
+--       bound_at = UTC_TIMESTAMP(),
+--       last_verified_at = UTC_TIMESTAMP()
+--   WHERE product_id = <product_id>
+--     AND machine_id = '<machine_id>';
+
 CREATE TABLE IF NOT EXISTS machine_snapshots (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     product_id BIGINT UNSIGNED NOT NULL,

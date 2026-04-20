@@ -231,6 +231,47 @@ final class LicenseService
         );
     }
 
+    public function activeLicenseStatus(int $productId, string $machineId): ?array
+    {
+        $license = $this->db->selectOne(
+            'SELECT l.id, l.license_key, l.status, l.expires_at
+             FROM license_bindings lb
+             INNER JOIN licenses l ON l.id = lb.license_id
+             WHERE lb.product_id = :productId
+               AND lb.machine_id = :machineId
+               AND lb.status = :bindingStatus
+               AND l.status = :licenseStatus
+             LIMIT 1',
+            [
+                'productId' => $productId,
+                'machineId' => $machineId,
+                'bindingStatus' => 'active',
+                'licenseStatus' => 'active',
+            ]
+        );
+
+        if ($license === null) {
+            return null;
+        }
+
+        $this->db->execute(
+            'UPDATE license_bindings
+             SET last_verified_at = UTC_TIMESTAMP()
+             WHERE product_id = :productId AND machine_id = :machineId',
+            [
+                'productId' => $productId,
+                'machineId' => $machineId,
+            ]
+        );
+
+        return [
+            'licenseId' => (int) $license['id'],
+            'licenseKey' => (string) $license['license_key'],
+            'status' => (string) $license['status'],
+            'expiresAt' => $license['expires_at'],
+        ];
+    }
+
     public function create(array $data): array
     {
         $required = ['product_id', 'license_key'];
@@ -306,7 +347,10 @@ final class LicenseService
             'INSERT INTO license_bindings (product_id, license_id, machine_id, machine_hash, status, bound_at, last_verified_at)
              VALUES (:productId, :licenseId, :machineId, :machineHash, :status, UTC_TIMESTAMP(), UTC_TIMESTAMP())
              ON DUPLICATE KEY UPDATE
+                license_id = VALUES(license_id),
+                machine_hash = VALUES(machine_hash),
                 status = VALUES(status),
+                bound_at = UTC_TIMESTAMP(),
                 last_verified_at = UTC_TIMESTAMP()',
             [
                 'productId' => $product['id'],

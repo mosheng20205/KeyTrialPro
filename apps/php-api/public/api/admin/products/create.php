@@ -28,6 +28,27 @@ try {
         'status' => (string) $request->input('status', 'active'),
     ]);
 
+    $app['policyService']->save($product, [
+        'trialDurationMinutes' => (int) ($product['trial_duration_minutes'] ?? 60),
+        'heartbeatIntervalSeconds' => (int) ($product['heartbeat_interval_seconds'] ?? 180),
+        'offlineGraceMinutes' => (int) ($product['offline_grace_minutes'] ?? 5),
+        'maxRebindCount' => 3,
+        'degradeMode' => 'read_only',
+        'policyCode' => 'default',
+        'licenseType' => 'standard',
+        'maxBindings' => 1,
+        'rebindLimit' => 3,
+        'requiresManualReviewAfterLimit' => true,
+    ]);
+
+    $app['securityProfileService']->save($product, [
+        'machineBindingMode' => 'strict',
+        'antiDebugEnabled' => true,
+        'antiVmEnabled' => true,
+        'hookDetectionEnabled' => true,
+        'challengeFailTolerance' => 3,
+    ]);
+
     api_ok(['product' => $product]);
 } catch (\InvalidArgumentException $e) {
     api_error($e->getMessage(), 'VALIDATION_ERROR', 422);

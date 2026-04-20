@@ -115,6 +115,16 @@ final class PolicyService
             ['productId' => $product['id']]
         );
 
+        if ($licensePolicies === []) {
+            $licensePolicies = [[
+                'policy_code' => 'default',
+                'license_type' => 'standard',
+                'max_bindings' => 1,
+                'rebind_limit' => 3,
+                'requires_manual_review_after_limit' => 1,
+            ]];
+        }
+
         return [
             'productId' => (int) $product['id'],
             'productCode' => $product['product_code'],

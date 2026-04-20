@@ -39,17 +39,28 @@ $app['licenseService']->registerPresence(
     $_SERVER['REMOTE_ADDR'] ?? null
 );
 
+$licenseStatus = $app['licenseService']->activeLicenseStatus((int) $product['id'], $summary['machineHash']);
 $trialStatus = $app['licenseService']->trialStatus($productCode, $summary['machineHash']);
 $remainingTrialSeconds = 0;
+$status = 'ok';
+$expiresAt = $licenseStatus['expiresAt'] ?? null;
 
 if ($trialStatus !== null) {
     $remainingTrialSeconds = (int) ($trialStatus['remainingSeconds'] ?? 0);
+
+    if ($expiresAt === null) {
+        $expiresAt = $trialStatus['expires_at'] ?? null;
+    }
+
+    if ($licenseStatus === null && $remainingTrialSeconds === 0) {
+        $status = 'trial_expired';
+    }
 }
 
 api_ok([
-    'status' => $remainingTrialSeconds === 0 && $trialStatus !== null ? 'trial_expired' : 'ok',
+    'status' => $status,
     'online' => true,
     'remainingTrialSeconds' => $remainingTrialSeconds,
-    'expiresAt' => $trialStatus['expires_at'] ?? null,
+    'expiresAt' => $expiresAt,
     'riskLevel' => 'low',
 ]);

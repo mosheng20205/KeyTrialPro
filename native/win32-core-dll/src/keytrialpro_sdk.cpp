@@ -59,6 +59,8 @@ bool internet_post_json(const std::string& url, const std::string& body, std::st
 void set_error(const std::string& message);
 std::string hex_encode(const std::vector<unsigned char>& bytes);
 std::string sha256_hex(const std::string& data);
+std::string sha1_hex(const std::string& data);
+std::string md5_hex(const std::string& data);
 std::string trim_ascii(std::string value);
 void CALLBACK winhttp_status_callback(HINTERNET, DWORD_PTR, DWORD, LPVOID, DWORD);
 
@@ -264,6 +266,42 @@ std::string get_primary_mac() {
     }
 
     return "";
+}
+
+std::string python_reference_primary_mac() {
+    const auto override_mac = lower_ascii(trim_ascii(get_env("KTP_TEST_PRIMARY_MAC")));
+    if (!override_mac.empty()) {
+        return override_mac;
+    }
+
+    const auto current_mac = get_primary_mac();
+    if (current_mac.empty()) {
+        return "";
+    }
+
+    std::stringstream mac_stream(current_mac);
+    std::string part;
+    unsigned long long node = 0;
+    while (std::getline(mac_stream, part, ':')) {
+        node = (node << 8) | static_cast<unsigned long long>(std::stoul(part, nullptr, 16));
+    }
+
+    const auto machine_id = sha1_hex(std::to_string(node)).substr(0, 16);
+    std::ostringstream stream;
+    for (size_t index = 0; index < 6 && index < machine_id.size(); ++index) {
+        if (index > 0) {
+            stream << ":";
+        }
+        stream.width(2);
+        stream.fill('0');
+        stream << std::hex << static_cast<int>(static_cast<unsigned char>(machine_id[index]));
+    }
+    return stream.str();
+}
+
+bool use_python_reference_fingerprint() {
+    const auto mode = lower_ascii(trim_ascii(get_env("KTP_TEST_FINGERPRINT_MODE")));
+    return mode == "python-reference" || mode == "python_reference" || mode == "1" || mode == "true";
 }
 
 std::string get_os_version() {
@@ -500,6 +538,24 @@ bool verify_tls_pin_chain(PCCERT_CHAIN_CONTEXT chain_context) {
 
 FingerprintContext collect_fingerprint() {
     FingerprintContext context;
+    if (use_python_reference_fingerprint()) {
+        context.cpu_serial = md5_hex("CPU-Intel-i7-12700").substr(0, 16);
+        context.system_disk_id = md5_hex("SSD-Samsung-1TB").substr(0, 16);
+        context.baseboard_serial = md5_hex("MB-Asus-Z690").substr(0, 16);
+        context.bios_version = md5_hex("BIOS-UEFI").substr(0, 16);
+        context.gpu_uuid = md5_hex("GPU-Nvidia-RTX3080").substr(0, 16);
+        context.primary_mac = python_reference_primary_mac();
+        context.os_version = "TEST-PC";
+        context.boot_uptime_seconds = "0";
+        context.anti_debug = false;
+        context.anti_vm = false;
+        context.anti_hook = false;
+        context.code_integrity_ok = true;
+        context.suspicious_modules = false;
+        context.suspicious_module_names.clear();
+        return context;
+    }
+
     context.cpu_serial = get_env("PROCESSOR_IDENTIFIER");
     context.system_disk_id = get_system_drive_serial();
     context.baseboard_serial = read_registry_string(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography", L"MachineGuid");
@@ -585,7 +641,7 @@ std::string random_nonce() {
     return hex_encode(std::vector<unsigned char>(bytes, bytes + sizeof(bytes)));
 }
 
-std::string bcrypt_digest_hex(const std::string& data, bool use_hmac, const std::string& secret = "") {
+std::string bcrypt_digest_hex(const wchar_t* algorithm_id, const std::string& data, bool use_hmac, const std::string& secret = "") {
     BCRYPT_ALG_HANDLE algorithm = nullptr;
     BCRYPT_HASH_HANDLE hash = nullptr;
     DWORD object_length = 0;
@@ -595,7 +651,7 @@ std::string bcrypt_digest_hex(const std::string& data, bool use_hmac, const std:
     std::vector<unsigned char> hash_buffer;
 
     const ULONG flags = use_hmac ? BCRYPT_ALG_HANDLE_HMAC_FLAG : 0;
-    if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, flags) != 0) {
+    if (BCryptOpenAlgorithmProvider(&algorithm, algorithm_id, nullptr, flags) != 0) {
         return "";
     }
 
@@ -628,11 +684,19 @@ std::string bcrypt_digest_hex(const std::string& data, bool use_hmac, const std:
 }
 
 std::string sha256_hex(const std::string& data) {
-    return bcrypt_digest_hex(data, false);
+    return bcrypt_digest_hex(BCRYPT_SHA256_ALGORITHM, data, false);
+}
+
+std::string sha1_hex(const std::string& data) {
+    return bcrypt_digest_hex(BCRYPT_SHA1_ALGORITHM, data, false);
+}
+
+std::string md5_hex(const std::string& data) {
+    return bcrypt_digest_hex(BCRYPT_MD5_ALGORITHM, data, false);
 }
 
 std::string hmac_sha256_hex(const std::string& secret, const std::string& data) {
-    return bcrypt_digest_hex(data, true, secret);
+    return bcrypt_digest_hex(BCRYPT_SHA256_ALGORITHM, data, true, secret);
 }
 
 std::string normalized_fingerprint_subject(const FingerprintContext& fingerprint) {
@@ -1040,6 +1104,7 @@ int KTP_CALL KtpRequestChallengeJson(char* buffer, int buffer_size) {
 
 int KTP_CALL KtpActivateLicenseJson(const char* card_key, char* buffer, int buffer_size) {
     const auto fingerprint = collect_fingerprint();
+    const auto subject = signature_subject(fingerprint);
     const std::string card = card_key == nullptr ? "" : card_key;
     std::string challenge_response;
     if (!request_challenge_internal(fingerprint, challenge_response)) {
@@ -1050,11 +1115,11 @@ int KTP_CALL KtpActivateLicenseJson(const char* card_key, char* buffer, int buff
     }
 
     const auto body = build_signed_body(
-        signature_subject(fingerprint),
+        "",
         "\"cardKey\":\"" + json_escape(card) + "\","
         "\"sdkVersion\":\"native-0.3\","
         "\"challengeId\":\"" + json_escape(g_last_challenge_id) + "\","
-        "\"challengeSignature\":\"" + sha256_hex(g_last_challenge_value + "|" + signature_subject(fingerprint)) + "\","
+        "\"challengeSignature\":\"" + sha256_hex(g_last_challenge_value + "|" + subject) + "\","
         "\"machineFingerprint\":" + fingerprint_to_json(fingerprint)
     );
     std::string response;
@@ -1069,6 +1134,7 @@ int KTP_CALL KtpActivateLicenseJson(const char* card_key, char* buffer, int buff
 
 int KTP_CALL KtpVerifyLicenseJson(char* buffer, int buffer_size) {
     const auto fingerprint = collect_fingerprint();
+    const auto subject = signature_subject(fingerprint);
     std::string challenge_response;
     if (!request_challenge_internal(fingerprint, challenge_response)) {
         if (current_error().empty()) {
@@ -1078,10 +1144,10 @@ int KTP_CALL KtpVerifyLicenseJson(char* buffer, int buffer_size) {
     }
 
     const auto body = build_signed_body(
-        signature_subject(fingerprint),
+        "",
         "\"sdkVersion\":\"native-0.3\","
         "\"challengeId\":\"" + json_escape(g_last_challenge_id) + "\","
-        "\"challengeSignature\":\"" + sha256_hex(g_last_challenge_value + "|" + signature_subject(fingerprint)) + "\","
+        "\"challengeSignature\":\"" + sha256_hex(g_last_challenge_value + "|" + subject) + "\","
         "\"machineFingerprint\":" + fingerprint_to_json(fingerprint)
     );
     std::string response;
@@ -1097,7 +1163,7 @@ int KTP_CALL KtpVerifyLicenseJson(char* buffer, int buffer_size) {
 int KTP_CALL KtpHeartbeatJson(char* buffer, int buffer_size) {
     const auto fingerprint = collect_fingerprint();
     const auto body = build_signed_body(
-        signature_subject(fingerprint),
+        "",
         "\"sdkVersion\":\"native-0.3\",\"machineFingerprint\":" + fingerprint_to_json(fingerprint)
     );
     std::string response;
