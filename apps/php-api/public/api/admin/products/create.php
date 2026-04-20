@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../../../../src/bootstrap/endpoint.php';
+use KeyTrialPro\shared\Security\AdminTokenGuard;
+
+$app = api_bootstrap();
+$request = api_request();
+
+AdminTokenGuard::requireAuth($app['config']['security']['adminJwtSecret']);
+
+$productCode = (string) $request->input('product_code', '');
+$name = (string) $request->input('name', '');
+
+if ($productCode === '' || $name === '') {
+    api_error('product_code and name are required', 'VALIDATION_ERROR', 422);
+}
+
+try {
+    $product = $app['productService']->create([
+        'product_code' => $productCode,
+        'name' => $name,
+        'client_app_key' => (string) $request->input('client_app_key', ''),
+        'trial_duration_minutes' => (int) $request->input('trial_duration_minutes', 60),
+        'heartbeat_interval_seconds' => (int) $request->input('heartbeat_interval_seconds', 180),
+        'offline_grace_minutes' => (int) $request->input('offline_grace_minutes', 5),
+        'status' => (string) $request->input('status', 'active'),
+    ]);
+
+    api_ok(['product' => $product]);
+} catch (\InvalidArgumentException $e) {
+    api_error($e->getMessage(), 'VALIDATION_ERROR', 422);
+} catch (\RuntimeException $e) {
+    api_error($e->getMessage(), 'CONFLICT', 409);
+}

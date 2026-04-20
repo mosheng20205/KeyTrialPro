@@ -1,0 +1,32 @@
+{
+  "challenge": {
+    "request": ["productId", "sdkVersion", "machineContext", "timestamp", "nonce", "hmac"],
+    "response": ["challengeId", "challenge", "expiresAt", "serverTime", "nonce"]
+  },
+  "activate": {
+    "request": ["productId", "cardKey", "challengeId", "challengeSignature", "machineFingerprint", "sdkVersion"],
+    "response": ["licenseId", "status", "machineId", "expiresAt", "onlineWindowSeconds"]
+  },
+  "verify": {
+    "request": ["productId", "licenseToken", "challengeId", "challengeSignature", "machineFingerprint"],
+    "response": ["status", "online", "remainingTrialSeconds", "expiresAt", "riskLevel"]
+  },
+  "heartbeat": {
+    "request": ["productId", "licenseToken", "machineId", "timestamp", "nonce", "hmac"],
+    "response": ["status", "serverTime", "onlineWindowSeconds", "remainingTrialSeconds"]
+  },
+  "trialStart": {
+    "request": ["productId", "challengeId", "challengeSignature", "machineFingerprint", "sdkVersion"],
+    "response": ["trialSessionId", "startedAt", "expiresAt", "offlineGraceExpiresAt", "status"]
+  },
+  "errorCodes": [
+    "AUTH_SIGNATURE_INVALID",
+    "AUTH_CHALLENGE_EXPIRED",
+    "LICENSE_NOT_FOUND",
+    "LICENSE_MACHINE_MISMATCH",
+    "TRIAL_ALREADY_USED",
+    "TRIAL_EXPIRED",
+    "RISK_REVIEW_REQUIRED"
+  ]
+}
+

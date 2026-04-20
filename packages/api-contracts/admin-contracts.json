@@ -1,0 +1,35 @@
+{
+  "platformOverview": {
+    "response": [
+      "totalActivatedCount",
+      "onlineCount",
+      "trialActiveCount",
+      "approvalBacklogCount",
+      "topProducts",
+      "trend"
+    ]
+  },
+  "productOverview": {
+    "response": [
+      "productId",
+      "productName",
+      "totalActivatedCount",
+      "onlineCount",
+      "trialStartedToday",
+      "trialExpiredToday",
+      "riskEventCount",
+      "trend"
+    ]
+  },
+  "trendPoint": {
+    "fields": [
+      "date",
+      "activatedCount",
+      "activeCount",
+      "trialStartedCount",
+      "trialExpiredCount",
+      "riskEventCount"
+    ]
+  }
+}
+

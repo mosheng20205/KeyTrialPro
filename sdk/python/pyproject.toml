@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keytrialpro-sdk"
+version = "0.1.0"
+description = "Python wrapper for the KeyTrialPro native SDK core"
+requires-python = ">=3.9"
+
