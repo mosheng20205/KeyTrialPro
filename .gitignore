@@ -18,3 +18,10 @@ obj/
 package-lock.json
 package.json
 
+# Local tooling and machine-specific artifacts
+.claude/
+.dotnet/
+.local-certs/
+*.tsbuildinfo
+*.csproj.user
+.vs/
