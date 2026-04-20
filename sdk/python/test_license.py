@@ -7,7 +7,7 @@ import uuid
 import time
 import requests
 
-SERVER_URL = "https://key.462030.xyz"
+SERVER_URL = "https://your-server.com"
 PRODUCT_CODE = "testp3"
 # IMPORTANT: The server's API_HMAC_KEY must match this value.
 # If signature verification fails, check that the server's .env has:

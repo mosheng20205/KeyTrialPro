@@ -120,7 +120,7 @@ python test_license.py
 
 使用前修改脚本中的配置：
 ```python
-SERVER_URL = "https://key.462030.xyz"   # 服务器地址
+SERVER_URL = "https://your-server.com"    # 服务器地址
 PRODUCT_CODE = "your_product_code"       # 产品编码
 APP_KEY = "your_app_key"                # 产品的 client_app_key
 CARD_KEY = "XXXX-XXXX-XXXX-XXXX"     # 卡密
