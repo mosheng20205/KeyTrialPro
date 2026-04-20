@@ -3,9 +3,10 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from
 import { api } from "./api";
 import { AppShell, type NavKey } from "./components/AppShell";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { mockApprovals, mockAuditLogs, mockLicenses, mockPlatformOverview, mockProductOverview, mockProducts, mockRiskEvents } from "./mockData";
+import { mockApprovals, mockAuditLogs, mockPlatformOverview, mockProductOverview, mockProducts, mockRiskEvents } from "./mockData";
 import { AddLicensePage } from "./pages/AddLicensePage";
 import { AddProductPage } from "./pages/AddProductPage";
+import { AdminAccountPage } from "./pages/AdminAccountPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AuditPage } from "./pages/AuditPage";
 import { LicenseInventoryPage } from "./pages/LicenseInventoryPage";
@@ -15,9 +16,9 @@ import { PlatformOverviewPage } from "./pages/PlatformOverviewPage";
 import { PoliciesPage } from "./pages/PoliciesPage";
 import { ProductOverviewPage } from "./pages/ProductOverviewPage";
 import { RiskCenterPage } from "./pages/RiskCenterPage";
-import type { ApprovalTicket, AuditLogRecord, LicenseRecord, PlatformOverview, ProductOverview, ProductRecord, RiskEvent } from "./types";
+import type { ApprovalTicket, AuditLogRecord, PlatformOverview, ProductOverview, ProductRecord, RiskEvent } from "./types";
 
-const coreNavViews: NavKey[] = ["platform", "product", "risk", "approvals", "licenses", "policies", "audit"];
+const coreNavViews: NavKey[] = ["platform", "product", "risk", "approvals", "licenses", "policies", "audit", "account"];
 
 function getNavFromLocation(pathname: string, search: string): NavKey {
   if (pathname === "/admin/add-product") {
@@ -57,7 +58,6 @@ function AdminApp() {
   const [productOverview, setProductOverview] = useState<ProductOverview>(mockProductOverview);
   const [riskEvents, setRiskEvents] = useState<RiskEvent[]>(mockRiskEvents);
   const [approvals, setApprovals] = useState<ApprovalTicket[]>(mockApprovals);
-  const [licenses, setLicenses] = useState<LicenseRecord[]>(mockLicenses);
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>(mockAuditLogs);
   const currentNav = getNavFromLocation(location.pathname, location.search);
 
@@ -82,7 +82,6 @@ function AdminApp() {
     api.productOverview(activeProduct).then(setProductOverview);
     api.riskEvents(activeProduct).then(setRiskEvents);
     api.approvals(activeProduct).then(setApprovals);
-    api.licenses(activeProduct).then(setLicenses);
     api.auditLogs(activeProduct).then(setAuditLogs);
   }, [activeProduct]);
 
@@ -112,11 +111,12 @@ function AdminApp() {
       {currentNav === "licenses" && (
         <div className="page-grid">
           <LicensesPage products={products} />
-          <LicenseInventoryPage licenses={licenses} />
+          <LicenseInventoryPage productCode={activeProduct} />
         </div>
       )}
       {currentNav === "policies" && <PoliciesPage productCode={activeProduct} />}
       {currentNav === "audit" && <AuditPage logs={auditLogs} />}
+      {currentNav === "account" && <AdminAccountPage />}
       {currentNav === "add-product" && <AddProductPage />}
       {currentNav === "add-license" && <AddLicensePage />}
     </AppShell>

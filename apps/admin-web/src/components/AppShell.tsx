@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import type { ProductRecord } from "../types";
 
 export type NavKey =
@@ -9,6 +11,7 @@ export type NavKey =
   | "licenses"
   | "policies"
   | "audit"
+  | "account"
   | "add-product"
   | "add-license";
 
@@ -23,22 +26,23 @@ type AppShellProps = {
 };
 
 const navItems: Array<{ key: NavKey; label: string; hint: string }> = [
-  { key: "platform", label: "平台概览", hint: "先看全局健康度" },
-  { key: "product", label: "产品运营", hint: "聚焦当前产品指标" },
-  { key: "risk", label: "风险中心", hint: "查看设备与环境异常" },
+  { key: "platform", label: "平台概览", hint: "先看全局健康度与积压" },
+  { key: "product", label: "产品运营", hint: "聚焦当前产品的活跃与趋势" },
+  { key: "risk", label: "风险中心", hint: "排查设备和环境异常" },
   { key: "approvals", label: "审批队列", hint: "处理换绑和恢复申请" },
-  { key: "licenses", label: "许可证", hint: "管理卡密库存与授权" },
+  { key: "licenses", label: "许可证", hint: "管理卡密库存与状态" },
   { key: "policies", label: "策略配置", hint: "维护试用、授权和安全规则" },
-  { key: "audit", label: "审计日志", hint: "回溯关键管理动作" },
-  { key: "add-product", label: "新增产品", hint: "创建并初始化默认配置" },
+  { key: "audit", label: "审计日志", hint: "追踪关键管理动作" },
+  { key: "account", label: "管理员设置", hint: "维护账号、密码和 MFA" },
+  { key: "add-product", label: "新增产品", hint: "创建产品并初始化默认配置" },
   { key: "add-license", label: "添加卡密", hint: "快速录入许可证" },
 ];
 
 const navMeta: Record<NavKey, { eyebrow: string; title: string; description: string }> = {
   platform: {
     eyebrow: "控制台",
-    title: "先看平台，再钻取到具体产品",
-    description: "把全局健康度、待处理积压和趋势变化放在同一视图里，减少在多张页面之间来回切换。",
+    title: "先看平台，再下钻到具体产品",
+    description: "把全局健康度、待处理积压和趋势变化放在同一视图里，减少在多个页面之间来回切换。",
   },
   product: {
     eyebrow: "产品运营",
@@ -62,13 +66,18 @@ const navMeta: Record<NavKey, { eyebrow: string; title: string; description: str
   },
   policies: {
     eyebrow: "策略配置",
-    title: "试用、授权、安全规则在这里统一维护",
+    title: "试用、授权、安全规则统一维护",
     description: "页面直接作用于当前产品。切换产品范围后，策略内容会同步切换，不再需要额外确认上下文。",
   },
   audit: {
     eyebrow: "审计日志",
     title: "追踪关键动作和系统变更",
     description: "日志默认绑定当前产品范围，复盘时更容易定位单产品问题。",
+  },
+  account: {
+    eyebrow: "管理员设置",
+    title: "维护后台登录账号、密码和 MFA",
+    description: "这里处理日常管理员维护；`.env` 更适合首个管理员初始化或应急覆盖。",
   },
   "add-product": {
     eyebrow: "新增产品",
@@ -77,7 +86,7 @@ const navMeta: Record<NavKey, { eyebrow: string; title: string; description: str
   },
   "add-license": {
     eyebrow: "添加卡密",
-    title: "快速录入卡密并关联到当前产品策略",
+    title: "快速录入卡密并关联到当前产品",
     description: "卡密创建会沿用产品默认策略，减少重复输入。",
   },
 };
@@ -92,6 +101,13 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const currentMeta = navMeta[current];
+  const { admin, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/admin/login", { replace: true });
+  };
 
   return (
     <div className="app-frame">
@@ -125,41 +141,68 @@ export function AppShell({
             <p className="topbar-description">{currentMeta.description}</p>
           </div>
           <div className="topbar-meta">
-            <div className="status-pill">MFA 已启用</div>
+            <div className="admin-summary">
+              <strong>{admin?.displayName ?? "未登录管理员"}</strong>
+              <span>{admin?.email ?? "unknown"}</span>
+            </div>
+            <div className="topbar-actions">
+              <div className={admin?.mfaEnabled ? "status-pill" : "status-pill status-pill-muted"}>
+                {admin?.mfaEnabled ? "MFA 已开启" : "MFA 已关闭"}
+              </div>
+              <button type="button" className="btn btn-secondary btn-logout" onClick={handleLogout}>
+                退出登录
+              </button>
+            </div>
           </div>
         </header>
 
-        <section className="workspace-context" aria-label="当前工作区产品范围">
-          <div className="context-card">
-            <div className="context-copy">
-              <span className="scope-summary-label">当前工作产品</span>
-              <strong>{activeProductRecord?.name ?? "未选择产品"}</strong>
-              <div className="context-meta">
-                <span>{activeProductRecord?.product_code ?? (activeProduct || "no-product")}</span>
-                <span>{activeProductRecord?.status === "active" ? "已启用" : "未启用"}</span>
+        {current === "account" ? (
+          <section className="workspace-context" aria-label="当前管理员">
+            <div className="context-card">
+              <div className="context-copy">
+                <span className="scope-summary-label">当前管理员</span>
+                <strong>{admin?.displayName ?? "未登录"}</strong>
+                <div className="context-meta">
+                  <span>{admin?.email ?? "unknown"}</span>
+                  <span>{admin?.roleCode ?? "platform_super_admin"}</span>
+                </div>
+              </div>
+              <div className="context-side-note">后台账号密码和 MFA 建议在当前页面内维护；只在初始化或紧急恢复时使用 `.env` bootstrap。</div>
+            </div>
+          </section>
+        ) : (
+          <section className="workspace-context" aria-label="当前工作区产品范围">
+            <div className="context-card">
+              <div className="context-copy">
+                <span className="scope-summary-label">当前工作产品</span>
+                <strong>{activeProductRecord?.name ?? "未选择产品"}</strong>
+                <div className="context-meta">
+                  <span>{activeProductRecord?.product_code ?? (activeProduct || "no-product")}</span>
+                  <span>{activeProductRecord?.status === "active" ? "已启用" : "未启用"}</span>
+                </div>
+              </div>
+
+              <div className="context-select-wrap">
+                <label className="context-select-label" htmlFor="workspace-product-select">
+                  切换产品范围
+                </label>
+                <select
+                  id="workspace-product-select"
+                  value={activeProduct}
+                  onChange={(event) => onProductChange(event.target.value)}
+                  disabled={products.length === 0}
+                >
+                  {products.map((product) => (
+                    <option value={product.product_code} key={product.product_code}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-
-            <div className="context-select-wrap">
-              <label className="context-select-label" htmlFor="workspace-product-select">
-                切换产品范围
-              </label>
-              <select
-                id="workspace-product-select"
-                value={activeProduct}
-                onChange={(event) => onProductChange(event.target.value)}
-                disabled={products.length === 0}
-              >
-                {products.map((product) => (
-                  <option value={product.product_code} key={product.product_code}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <p className="workspace-context-hint">进入任一菜单页时，这里就是当前操作对象。概览、策略、风控、许可证和审计日志都会跟随这个产品范围联动。</p>
-        </section>
+            <p className="workspace-context-hint">进入任一菜单页时，这里就是当前操作对象。概览、策略、风控、许可证和审计日志都会跟随这个产品范围联动。</p>
+          </section>
+        )}
 
         {children}
       </main>

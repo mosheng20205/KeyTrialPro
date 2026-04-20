@@ -32,6 +32,14 @@ final class config
                 'dataEncryptionKey' => Env::get('DATA_ENCRYPTION_KEY', '0123456789abcdef0123456789abcdef'),
                 'adminJwtSecret' => Env::get('ADMIN_JWT_SECRET', 'dev-jwt-secret'),
                 'tlsPinsetSha256' => Env::get('TLS_PINSET_SHA256', ''),
+                'adminBootstrap' => [
+                    'email' => Env::get('ADMIN_BOOTSTRAP_EMAIL', ''),
+                    'password' => Env::get('ADMIN_BOOTSTRAP_PASSWORD', ''),
+                    'displayName' => Env::get('ADMIN_BOOTSTRAP_DISPLAY_NAME', 'Platform Administrator'),
+                    'mfaEnabled' => in_array(strtolower((string) Env::get('ADMIN_BOOTSTRAP_MFA_ENABLED', '1')), ['1', 'true', 'yes', 'on'], true),
+                    'mfaSecret' => Env::get('ADMIN_BOOTSTRAP_MFA_SECRET', ''),
+                    'forceSync' => in_array(strtolower((string) Env::get('ADMIN_BOOTSTRAP_FORCE_SYNC', '0')), ['1', 'true', 'yes', 'on'], true),
+                ],
             ],
             'presence' => [
                 'windowSeconds' => (int) Env::get('PRESENCE_WINDOW_SECONDS', '300'),
@@ -43,4 +51,3 @@ final class config
         ];
     }
 }
-

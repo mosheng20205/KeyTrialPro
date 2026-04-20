@@ -1,50 +1,49 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../api";
-import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export function LoginPage() {
   const { login, verifyMfa } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<"credentials" | "mfa">("credentials");
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleCredentials = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleCredentials = async (event: FormEvent) => {
+    event.preventDefault();
     setError("");
     setLoading(true);
+
     try {
-      const result = await api.login(email, password) as { requiresMfa?: boolean; challengeToken?: string; token?: string; admin?: unknown };
+      const result = await login(email, password);
       if (result.requiresMfa && result.challengeToken) {
         setChallengeToken(result.challengeToken);
         setStep("mfa");
-      } else if (result.token) {
-        await login(email, password);
+      } else {
         navigate("/admin/");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "登录失败，请重试");
+      setError(err instanceof Error ? err.message : "登录失败，请重试。");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMfa = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleMfa = async (event: FormEvent) => {
+    event.preventDefault();
     setError("");
     setLoading(true);
+
     try {
-      await api.verifyMfa(challengeToken, mfaCode);
       await verifyMfa(mfaCode, challengeToken);
       navigate("/admin/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "MFA 验证失败");
+      setError(err instanceof Error ? err.message : "MFA 验证失败。");
     } finally {
       setLoading(false);
     }
@@ -54,9 +53,9 @@ export function LoginPage() {
     <div className="login-wrapper">
       <div className="login-card">
         <h1 className="login-title">KeyTrialPro 管理后台</h1>
-        <p className="login-subtitle">请登录以继续</p>
+        <p className="login-subtitle">请输入管理员账号密码继续。默认种子账号只建议用于首次初始化，登录后请立即修改。</p>
 
-        {error && <div className="login-error">{error}</div>}
+        {error ? <div className="login-error">{error}</div> : null}
 
         {step === "credentials" ? (
           <form onSubmit={handleCredentials} className="login-form">
@@ -66,9 +65,10 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="admin@example.com"
                 required
+                autoComplete="username"
               />
             </div>
             <div className="form-group">
@@ -77,9 +77,10 @@ export function LoginPage() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="输入密码"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="输入管理员密码"
                 required
+                autoComplete="current-password"
               />
             </div>
             <button type="submit" className="login-button" disabled={loading}>
@@ -94,20 +95,20 @@ export function LoginPage() {
                 id="mfa"
                 type="text"
                 value={mfaCode}
-                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="000000"
                 maxLength={6}
                 pattern="\d{6}"
                 required
                 autoFocus
               />
-              <p className="form-hint">请输入 authenticator 应用中的六位验证码</p>
+              <p className="form-hint">请输入 TOTP 认证器中的六位验证码。</p>
             </div>
             <button type="submit" className="login-button" disabled={loading}>
-              {loading ? "验证中..." : "验证"}
+              {loading ? "验证中..." : "验证 MFA"}
             </button>
             <button type="button" className="login-back" onClick={() => setStep("credentials")}>
-              返回重新输入密码
+              返回重新输入账号密码
             </button>
           </form>
         )}

@@ -1,3 +1,17 @@
+export type AdminSession = {
+  id: number;
+  email: string;
+  displayName: string;
+  roleCode: string;
+  mfaEnabled: boolean;
+};
+
+export type AdminProfile = AdminSession & {
+  status: string;
+  mfaSecret: string;
+  mfaProvisioningUri: string | null;
+};
+
 export type TrendPoint = {
   date: string;
   total_activated_count?: number;
@@ -114,10 +128,13 @@ export type LicenseRecord = {
   id: number;
   product_id: number;
   license_key: string;
+  license_type?: string;
   status: string;
   expires_at: string | null;
   max_bindings: number;
   product_name: string;
+  active_binding_count?: number;
+  created_at?: string | null;
 };
 
 export type AuditLogRecord = {
@@ -130,4 +147,54 @@ export type AuditLogRecord = {
   target_id: string;
   ip_address: string | null;
   created_at: string;
+};
+
+export type PaginationMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalAll?: number;
+  totalPages: number;
+};
+
+export type LicenseListResponse = {
+  items: LicenseRecord[];
+  pagination: PaginationMeta;
+  filters: {
+    status: string;
+    query: string;
+  };
+};
+
+export type LicenseBindingRecord = {
+  id: number;
+  machineId: string;
+  machineHash: string;
+  status: string;
+  boundAt: string;
+  lastVerifiedAt: string | null;
+};
+
+export type LicenseDetail = LicenseRecord & {
+  productCode: string;
+  updatedAt: string | null;
+  bindings: LicenseBindingRecord[];
+};
+
+export type LicenseLogRecord = {
+  id: number;
+  productId: number | null;
+  actorType: string;
+  actorId: string;
+  actionCode: string;
+  targetType: string;
+  targetId: string;
+  ipAddress: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export type LicenseLogResponse = {
+  items: LicenseLogRecord[];
+  pagination: PaginationMeta;
 };

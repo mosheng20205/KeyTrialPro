@@ -211,6 +211,12 @@ API_HMAC_KEY=生成64位以上的随机密钥
 DATA_ENCRYPTION_KEY=生成32字节的随机密钥（base64编码，43字符）
 ADMIN_JWT_SECRET=生成64位以上的随机密钥
 TLS_PINSET_SHA256=生产环境TLS证书pin值
+ADMIN_BOOTSTRAP_EMAIL=admin@example.com
+ADMIN_BOOTSTRAP_PASSWORD=仅首次初始化或紧急重置时填写
+ADMIN_BOOTSTRAP_DISPLAY_NAME=Platform Administrator
+ADMIN_BOOTSTRAP_MFA_ENABLED=true
+ADMIN_BOOTSTRAP_MFA_SECRET=
+ADMIN_BOOTSTRAP_FORCE_SYNC=false
 PRESENCE_WINDOW_SECONDS=300
 TRIAL_DEFAULT_HEARTBEAT_SECONDS=180
 TRIAL_DEFAULT_OFFLINE_GRACE_MINUTES=5
@@ -222,6 +228,13 @@ TRIAL_DEFAULT_OFFLINE_GRACE_MINUTES=5
 openssl rand -base64 64   # API_HMAC_KEY / ADMIN_JWT_SECRET
 openssl rand -base64 32   # DATA_ENCRYPTION_KEY
 ```
+
+**管理员账户维护建议：**
+
+- 日常修改管理员邮箱、密码、MFA 开关，请直接在 `/admin/` 后台的“管理员设置”页面操作。
+- `.env` 里的 `ADMIN_BOOTSTRAP_*` 仅建议用于首次初始化，或在你无法登录后台时做应急恢复。
+- 如果需要强制把 `.env` 中的管理员信息覆盖到数据库，把 `ADMIN_BOOTSTRAP_FORCE_SYNC=true`，完成后请改回 `false` 并重启 PHP-FPM。
+- `ADMIN_BOOTSTRAP_MFA_ENABLED` 对应数据库字段 `admins.mfa_enabled`。
 
 ---
 

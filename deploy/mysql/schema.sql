@@ -248,6 +248,19 @@ CREATE TABLE IF NOT EXISTS admins (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Default bootstrap administrator:
+--   email: admin@example.com
+--   password: admin123
+-- Runtime note:
+--   Day-to-day changes should be done in the admin web UI.
+--   Optional .env bootstrap keys can create or force-sync an admin account:
+--   ADMIN_BOOTSTRAP_EMAIL
+--   ADMIN_BOOTSTRAP_PASSWORD
+--   ADMIN_BOOTSTRAP_DISPLAY_NAME
+--   ADMIN_BOOTSTRAP_MFA_ENABLED
+--   ADMIN_BOOTSTRAP_MFA_SECRET
+--   ADMIN_BOOTSTRAP_FORCE_SYNC
+
 CREATE TABLE IF NOT EXISTS client_request_nonces (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     product_id BIGINT UNSIGNED NOT NULL,

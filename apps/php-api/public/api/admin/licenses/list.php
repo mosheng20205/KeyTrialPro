@@ -20,5 +20,9 @@ if ($productCode !== '') {
     $productId = (int) $product['id'];
 }
 
-api_ok($app['licenseService']->list($productId));
-
+api_ok($app['licenseService']->listPage($productId, [
+    'page' => (int) $request->input('page', 1),
+    'pageSize' => (int) $request->input('pageSize', 20),
+    'status' => (string) $request->input('status', 'all'),
+    'query' => (string) $request->input('query', ''),
+]));

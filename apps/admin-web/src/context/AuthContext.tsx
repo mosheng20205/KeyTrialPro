@@ -1,17 +1,12 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-
-interface Admin {
-  id: number;
-  email: string;
-  displayName: string;
-  roleCode: string;
-}
+import { createContext, useContext, useState, type ReactNode } from "react";
+import type { AdminSession } from "../types";
 
 interface AuthContextValue {
   token: string | null;
-  admin: Admin | null;
+  admin: AdminSession | null;
   login: (email: string, password: string) => Promise<{ requiresMfa: boolean; challengeToken?: string }>;
   verifyMfa: (code: string, challengeToken: string) => Promise<void>;
+  updateAdmin: (admin: AdminSession) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -23,10 +18,17 @@ const ADMIN_KEY = "ktp_admin";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-  const [admin, setAdmin] = useState<Admin | null>(() => {
+  const [admin, setAdmin] = useState<AdminSession | null>(() => {
     const stored = localStorage.getItem(ADMIN_KEY);
-    return stored ? JSON.parse(stored) : null;
+    return stored ? (JSON.parse(stored) as AdminSession) : null;
   });
+
+  const persistSession = (nextToken: string, nextAdmin: AdminSession) => {
+    setToken(nextToken);
+    setAdmin(nextAdmin);
+    localStorage.setItem(TOKEN_KEY, nextToken);
+    localStorage.setItem(ADMIN_KEY, JSON.stringify(nextAdmin));
+  };
 
   const login = async (email: string, password: string): Promise<{ requiresMfa: boolean; challengeToken?: string }> => {
     const response = await fetch("/api/admin/auth/login.php", {
@@ -35,17 +37,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
     const payload = await response.json();
+
     if (!payload.success) {
       throw new Error(payload.error?.message ?? "登录失败");
     }
-    const data = payload.data;
+
+    const data = payload.data as {
+      requiresMfa?: boolean;
+      challengeToken?: string;
+      token?: string;
+      admin?: AdminSession;
+    };
+
     if (data.requiresMfa) {
       return { requiresMfa: true, challengeToken: data.challengeToken };
     }
-    setToken(data.token);
-    setAdmin(data.admin);
-    localStorage.setItem(TOKEN_KEY, data.token);
-    localStorage.setItem(ADMIN_KEY, JSON.stringify(data.admin));
+
+    if (!data.token || !data.admin) {
+      throw new Error("登录响应缺少管理员会话数据。");
+    }
+
+    persistSession(data.token, data.admin);
     return { requiresMfa: false };
   };
 
@@ -56,13 +68,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ challengeToken, mfaCode: code }),
     });
     const payload = await response.json();
+
     if (!payload.success) {
       throw new Error(payload.error?.message ?? "MFA 验证失败");
     }
-    setToken(payload.data.token);
-    setAdmin(payload.data.admin);
-    localStorage.setItem(TOKEN_KEY, payload.data.token);
-    localStorage.setItem(ADMIN_KEY, JSON.stringify(payload.data.admin));
+
+    const data = payload.data as { token?: string; admin?: AdminSession };
+    if (!data.token || !data.admin) {
+      throw new Error("MFA 验证响应缺少管理员会话数据。");
+    }
+
+    persistSession(data.token, data.admin);
+  };
+
+  const updateAdmin = (nextAdmin: AdminSession) => {
+    setAdmin(nextAdmin);
+    localStorage.setItem(ADMIN_KEY, JSON.stringify(nextAdmin));
   };
 
   const logout = () => {
@@ -73,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ token, admin, login, verifyMfa, logout, isAuthenticated: token !== null }}>
+    <AuthContext.Provider value={{ token, admin, login, verifyMfa, updateAdmin, logout, isAuthenticated: token !== null }}>
       {children}
     </AuthContext.Provider>
   );

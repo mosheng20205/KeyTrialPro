@@ -32,7 +32,8 @@ body {
 
 button,
 select,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -175,6 +176,34 @@ input {
   justify-items: end;
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-summary {
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  min-width: 240px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 12px 28px rgba(28, 39, 32, 0.06);
+}
+
+.admin-summary strong {
+  font-size: 14px;
+}
+
+.admin-summary span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .workspace-context {
   display: grid;
   gap: 12px;
@@ -238,6 +267,13 @@ input {
   line-height: 1.6;
 }
 
+.context-side-note {
+  max-width: 360px;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 14px;
+}
+
 .scope-summary {
   min-width: 220px;
   padding: 16px 18px;
@@ -270,6 +306,11 @@ input {
 .status-pill {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.status-pill-muted {
+  background: rgba(19, 32, 27, 0.08);
+  color: var(--muted);
 }
 
 .page-grid {
@@ -452,13 +493,72 @@ input {
   min-width: 0;
 }
 
+.table-cell-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.table-cell-nowrap {
+  white-space: nowrap;
+}
+
+.table-cell-code {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
 .table-cell-wide {
   line-height: 1.6;
 }
 
-.license-grid,
 .audit-grid {
+  grid-template-columns:
+    minmax(132px, 0.95fr)
+    minmax(240px, 2.1fr)
+    minmax(160px, 1.25fr)
+    minmax(120px, 0.9fr)
+    minmax(120px, 0.8fr);
+}
+
+.license-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.license-grid-ops {
+  grid-template-columns:
+    minmax(220px, 2.2fr)
+    minmax(110px, 0.9fr)
+    minmax(150px, 1.15fr)
+    minmax(110px, 0.9fr)
+    minmax(150px, 1.1fr)
+    minmax(170px, 1.2fr);
+}
+
+.license-binding-grid {
+  grid-template-columns:
+    minmax(260px, 2fr)
+    minmax(110px, 0.8fr)
+    minmax(150px, 1fr)
+    minmax(150px, 1fr);
+}
+
+.license-log-grid {
+  grid-template-columns:
+    minmax(140px, 1fr)
+    minmax(220px, 1.7fr)
+    minmax(160px, 1fr)
+    minmax(240px, 2.1fr)
+    minmax(120px, 0.9fr);
+}
+
+.risk-grid {
+  grid-template-columns:
+    minmax(120px, 0.95fr)
+    minmax(260px, 2.35fr)
+    minmax(170px, 1.15fr)
+    minmax(110px, 0.75fr)
+    minmax(220px, 1.7fr);
 }
 
 .risk-pill {
@@ -544,12 +644,17 @@ input {
 
 .form-grid input,
 .form-grid select,
+.form-grid textarea,
 .policy-rule-card input {
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface-strong);
   padding: 12px 14px;
   color: var(--surface-ink);
+}
+
+.form-grid textarea {
+  resize: vertical;
 }
 
 .inline-status {
@@ -640,6 +745,11 @@ input {
     flex-direction: column;
   }
 
+  .topbar-actions,
+  .account-card-header {
+    justify-content: space-between;
+  }
+
   .context-card {
     flex-direction: column;
     align-items: stretch;
@@ -673,6 +783,18 @@ input {
 
   .topbar-meta {
     justify-items: start;
+  }
+
+  .topbar-actions,
+  .account-card-header {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-summary {
+    width: 100%;
+    min-width: 0;
   }
 }
 
@@ -856,6 +978,217 @@ input {
   background: rgba(17, 75, 58, 0.14);
 }
 
+.btn-logout {
+  min-height: 42px;
+}
+
+.license-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) minmax(140px, 1fr) minmax(120px, 0.8fr) auto;
+  gap: 14px;
+  margin-bottom: 18px;
+  align-items: end;
+}
+
+.license-toolbar label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.license-toolbar input,
+.license-toolbar select {
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-strong);
+  padding: 0 14px;
+  color: var(--surface-ink);
+}
+
+.license-toolbar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.license-summary-bar,
+.license-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.license-summary-bar {
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.license-pagination {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(19, 32, 27, 0.06);
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.license-pagination-controls,
+.license-pagination-jump {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.license-pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.license-pagination-text {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.page-number-button {
+  border: 1px solid rgba(17, 75, 58, 0.12);
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--surface-ink);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.page-number-button:hover:not(:disabled),
+.page-number-button:focus-visible {
+  border-color: rgba(17, 75, 58, 0.24);
+  background: rgba(17, 75, 58, 0.08);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.page-number-button-active {
+  border-color: rgba(17, 75, 58, 0.3);
+  background: linear-gradient(135deg, #114b3a, #1c6d57);
+  color: #fff;
+  box-shadow:
+    0 0 0 3px rgba(17, 75, 58, 0.14),
+    0 12px 24px rgba(17, 75, 58, 0.2);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.page-number-button-active:hover:not(:disabled),
+.page-number-button-active:focus-visible {
+  background: linear-gradient(135deg, #0f4334, #1a624f);
+}
+
+.page-number-button[aria-current="page"] {
+  font-weight: 800;
+}
+
+.page-number-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.page-number-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.license-pagination-jump label {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.license-pagination-jump input {
+  width: 92px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-strong);
+  padding: 0 12px;
+  color: var(--surface-ink);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-chip-active {
+  background: rgba(17, 75, 58, 0.12);
+  color: var(--accent);
+}
+
+.status-chip-blocked {
+  background: rgba(169, 39, 39, 0.12);
+  color: var(--critical);
+}
+
+.status-chip-inactive {
+  background: rgba(19, 32, 27, 0.08);
+  color: var(--muted);
+}
+
+.license-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mini-button {
+  border: 0;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(17, 75, 58, 0.1);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mini-button:hover,
+.mini-button:focus-visible {
+  background: rgba(17, 75, 58, 0.16);
+  outline: none;
+}
+
+.mini-button-secondary {
+  background: rgba(19, 32, 27, 0.08);
+  color: var(--muted);
+}
+
+.mini-button-danger {
+  background: rgba(169, 39, 39, 0.1);
+  color: var(--critical);
+}
+
+.mini-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ===== Alerts ===== */
 .alert {
   border-radius: 14px;
@@ -873,6 +1206,179 @@ input {
   background: rgba(17, 75, 58, 0.08);
   border: 1px solid rgba(17, 75, 58, 0.2);
   color: var(--accent);
+}
+
+.account-layout,
+.account-password-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.account-password-grid {
+  max-width: 720px;
+}
+
+.account-password-grid label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.account-password-grid input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid rgba(17, 75, 58, 0.14);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 244, 0.96));
+  padding: 0 16px;
+  color: var(--surface-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 24px rgba(19, 32, 27, 0.05);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.account-password-grid input::placeholder {
+  color: rgba(95, 109, 101, 0.78);
+}
+
+.account-password-grid input:hover {
+  border-color: rgba(17, 75, 58, 0.22);
+}
+
+.account-password-grid input:focus {
+  outline: none;
+  border-color: rgba(17, 75, 58, 0.42);
+  box-shadow: 0 0 0 4px rgba(17, 75, 58, 0.08), 0 14px 30px rgba(17, 75, 58, 0.1);
+  transform: translateY(-1px);
+}
+
+.account-card {
+  border: 1px solid rgba(19, 32, 27, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 20px;
+}
+
+.account-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.account-card-header h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.account-role {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(17, 75, 58, 0.08);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-checkbox {
+  align-items: start;
+}
+
+.account-checkbox span {
+  display: grid;
+  gap: 4px;
+}
+
+.account-checkbox small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.form-grid-wide {
+  grid-column: 1 / -1;
+}
+
+.readonly-input,
+.readonly-textarea {
+  background: rgba(19, 32, 27, 0.04) !important;
+}
+
+.readonly-textarea {
+  min-height: 92px;
+}
+
+.monospace-input {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 13px;
+}
+
+.account-env-note {
+  display: grid;
+  gap: 10px;
+  line-height: 1.7;
+}
+
+.account-env-note p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.account-env-note code {
+  display: inline-block;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(19, 32, 27, 0.06);
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+}
+
+.license-detail-shell {
+  margin-top: 24px;
+  border-top: 1px solid rgba(19, 32, 27, 0.08);
+  padding-top: 24px;
+}
+
+.license-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.license-detail-card,
+.license-detail-panel {
+  border: 1px solid rgba(19, 32, 27, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.license-detail-card {
+  padding: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.license-detail-card span,
+.license-detail-card small {
+  color: var(--muted);
+}
+
+.license-detail-card strong {
+  font-size: 18px;
+}
+
+.license-detail-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.license-detail-panel {
+  padding: 20px;
 }
 
 @media (max-width: 768px) {
@@ -898,5 +1404,85 @@ input {
 
   .login-card {
     padding: 28px 20px;
+  }
+
+  .license-pagination {
+    padding: 14px;
+    align-items: stretch;
+  }
+
+  .license-pagination-controls,
+  .license-pagination-jump {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .license-pagination-controls {
+    gap: 8px;
+  }
+
+  .license-pagination-pages {
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .page-number-button {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  .license-pagination-text {
+    width: 100%;
+    text-align: center;
+    font-size: 13px;
+  }
+
+  .license-pagination-jump input {
+    width: 72px;
+    min-height: 38px;
+  }
+
+  .license-toolbar,
+  .license-detail-grid,
+  .license-detail-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .license-pagination {
+    gap: 10px;
+  }
+
+  .license-pagination-controls {
+    justify-content: space-between;
+  }
+
+  .license-pagination-pages {
+    order: 3;
+    width: 100%;
+  }
+
+  .license-pagination-jump {
+    justify-content: space-between;
+  }
+
+  .license-pagination-jump label {
+    font-size: 13px;
+  }
+
+  .page-number-button {
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .page-number-ellipsis {
+    min-width: 18px;
+    font-size: 12px;
   }
 }

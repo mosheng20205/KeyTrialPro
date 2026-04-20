@@ -23,11 +23,11 @@ export function AuditPage({ logs }: AuditPageProps) {
         <div className="table-head">IP</div>
         {logs.map((log) => (
           <Fragment key={log.id}>
-            <div className="table-cell" key={`time-${log.id}`}>{log.created_at}</div>
-            <div className="table-cell" key={`actor-${log.id}`}>{log.actor_type}:{log.actor_id}</div>
-            <div className="table-cell" key={`action-${log.id}`}>{log.action_code}</div>
-            <div className="table-cell" key={`target-${log.id}`}>{log.target_type}:{log.target_id}</div>
-            <div className="table-cell" key={`ip-${log.id}`}>{log.ip_address ?? "-"}</div>
+            <div className="table-cell table-cell-nowrap" key={`time-${log.id}`}>{log.created_at}</div>
+            <div className="table-cell table-cell-break table-cell-code" key={`actor-${log.id}`}>{log.actor_type}:{log.actor_id}</div>
+            <div className="table-cell table-cell-break table-cell-code" key={`action-${log.id}`}>{log.action_code}</div>
+            <div className="table-cell table-cell-break" key={`target-${log.id}`}>{log.target_type}:{log.target_id}</div>
+            <div className="table-cell table-cell-nowrap" key={`ip-${log.id}`}>{log.ip_address ?? "-"}</div>
           </Fragment>
         ))}
       </div>

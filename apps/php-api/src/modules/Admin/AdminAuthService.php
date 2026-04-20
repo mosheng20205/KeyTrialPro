@@ -16,6 +16,7 @@ final class AdminAuthService
 
     public function attempt(string $email, string $password): array
     {
+        $email = strtolower(trim($email));
         $admin = $this->db->selectOne(
             'SELECT id, email, display_name, role_code, mfa_enabled, password_hash, status
              FROM admins
@@ -50,12 +51,14 @@ final class AdminAuthService
                 'email' => $admin['email'],
                 'displayName' => $admin['display_name'],
                 'roleCode' => $admin['role_code'],
+                'mfaEnabled' => (bool) $admin['mfa_enabled'],
             ],
         ];
     }
 
     public function verifyMfa(string $email, string $code): array
     {
+        $email = strtolower(trim($email));
         $admin = $this->db->selectOne(
             'SELECT id, email, display_name, role_code, mfa_enabled, mfa_secret, status
              FROM admins
@@ -87,6 +90,7 @@ final class AdminAuthService
                 'email' => $admin['email'],
                 'displayName' => $admin['display_name'],
                 'roleCode' => $admin['role_code'],
+                'mfaEnabled' => (bool) $admin['mfa_enabled'],
             ],
         ];
     }

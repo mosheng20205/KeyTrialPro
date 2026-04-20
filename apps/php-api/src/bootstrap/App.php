@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KeyTrialPro\bootstrap;
 
+use KeyTrialPro\modules\Admin\AdminAccountService;
 use KeyTrialPro\modules\Admin\AdminAuthService;
 use KeyTrialPro\modules\Approval\ApprovalService;
 use KeyTrialPro\modules\Audit\AuditService;
@@ -26,6 +27,8 @@ final class App
         $config = config::load();
         $database = new Database($config['db']);
         $crypto = new Crypto($config['security']['dataEncryptionKey']);
+        $adminAccountService = new AdminAccountService($database);
+        $adminAccountService->syncBootstrapAdmin($config['security']['adminBootstrap']);
 
         return [
             'config' => $config,
@@ -42,6 +45,7 @@ final class App
             'statsService' => new StatsService($database, $config['presence']['windowSeconds']),
             'approvalService' => new ApprovalService($database),
             'adminAuthService' => new AdminAuthService($database, $config['security']['adminJwtSecret']),
+            'adminAccountService' => $adminAccountService,
             'auditService' => new AuditService($database),
         ];
     }

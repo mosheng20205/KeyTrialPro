@@ -15,19 +15,228 @@ final class LicenseService
     ) {
     }
 
-    public function list(?int $productId = null): array
+    public function listPage(?int $productId = null, array $filters = []): array
     {
-        $sql = 'SELECT l.id, l.product_id, l.license_key, l.status, l.expires_at, l.max_bindings, p.name AS product_name
-                FROM licenses l
-                INNER JOIN products p ON p.id = l.product_id';
-        $params = [];
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $pageSize = min(100, max(10, (int) ($filters['pageSize'] ?? 20)));
+        $offset = ($page - 1) * $pageSize;
+        $status = strtolower(trim((string) ($filters['status'] ?? '')));
+        $query = trim((string) ($filters['query'] ?? ''));
 
-        if ($productId !== null) {
-            $sql .= ' WHERE l.product_id = :productId';
-            $params['productId'] = $productId;
+        $params = [];
+        $whereSql = $this->buildListWhereSql($productId, $status, $query, $params);
+        $fromSql = ' FROM licenses l
+                     INNER JOIN products p ON p.id = l.product_id';
+        $baseParams = [];
+        $baseWhereSql = $this->buildListWhereSql($productId, '', '', $baseParams);
+
+        $totalRow = $this->db->selectOne(
+            'SELECT COUNT(*) AS total' . $fromSql . $whereSql,
+            $params
+        );
+        $totalAllRow = $this->db->selectOne(
+            'SELECT COUNT(*) AS total' . $fromSql . $baseWhereSql,
+            $baseParams
+        );
+
+        $rows = $this->db->select(
+            'SELECT
+                l.id,
+                l.product_id,
+                l.license_key,
+                l.license_type,
+                l.status,
+                l.expires_at,
+                l.max_bindings,
+                l.created_at,
+                p.name AS product_name,
+                COALESCE(binding_stats.active_binding_count, 0) AS active_binding_count
+             ' . $fromSql . '
+             LEFT JOIN (
+                SELECT license_id, COUNT(*) AS active_binding_count
+                FROM license_bindings
+                WHERE status = \'active\'
+                GROUP BY license_id
+             ) binding_stats ON binding_stats.license_id = l.id' . $whereSql . '
+             ORDER BY l.id DESC
+             LIMIT ' . $pageSize . ' OFFSET ' . $offset,
+            $params
+        );
+
+        $total = (int) ($totalRow['total'] ?? 0);
+        $totalAll = (int) ($totalAllRow['total'] ?? 0);
+
+        return [
+            'items' => array_map([$this, 'mapLicenseRow'], $rows),
+            'pagination' => [
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'total' => $total,
+                'totalAll' => $totalAll,
+                'totalPages' => max(1, (int) ceil($total / $pageSize)),
+            ],
+            'filters' => [
+                'status' => $status === '' ? 'all' : $status,
+                'query' => $query,
+            ],
+        ];
+    }
+
+    public function getDetail(int $licenseId): ?array
+    {
+        $license = $this->db->selectOne(
+            'SELECT
+                l.id,
+                l.product_id,
+                l.license_key,
+                l.license_type,
+                l.status,
+                l.expires_at,
+                l.max_bindings,
+                l.created_at,
+                l.updated_at,
+                p.product_code,
+                p.name AS product_name,
+                COALESCE(binding_stats.active_binding_count, 0) AS active_binding_count
+             FROM licenses l
+             INNER JOIN products p ON p.id = l.product_id
+             LEFT JOIN (
+                SELECT license_id, COUNT(*) AS active_binding_count
+                FROM license_bindings
+                WHERE status = \'active\'
+                GROUP BY license_id
+             ) binding_stats ON binding_stats.license_id = l.id
+             WHERE l.id = :licenseId
+             LIMIT 1',
+            ['licenseId' => $licenseId]
+        );
+
+        if ($license === null) {
+            return null;
         }
 
-        return $this->db->select($sql . ' ORDER BY l.id DESC LIMIT 200', $params);
+        $bindings = $this->db->select(
+            'SELECT id, machine_id, machine_hash, status, bound_at, last_verified_at
+             FROM license_bindings
+             WHERE license_id = :licenseId
+             ORDER BY id DESC
+             LIMIT 20',
+            ['licenseId' => $licenseId]
+        );
+
+        $detail = $this->mapLicenseRow($license);
+        $detail['productCode'] = (string) ($license['product_code'] ?? '');
+        $detail['updatedAt'] = $license['updated_at'];
+        $detail['bindings'] = array_map(
+            static fn (array $binding): array => [
+                'id' => (int) $binding['id'],
+                'machineId' => (string) $binding['machine_id'],
+                'machineHash' => (string) $binding['machine_hash'],
+                'status' => (string) $binding['status'],
+                'boundAt' => $binding['bound_at'],
+                'lastVerifiedAt' => $binding['last_verified_at'],
+            ],
+            $bindings
+        );
+
+        return $detail;
+    }
+
+    public function updateStatus(int $licenseId, string $status): array
+    {
+        $status = strtolower(trim($status));
+        $allowedStatuses = ['active', 'blocked', 'inactive'];
+
+        if (!in_array($status, $allowedStatuses, true)) {
+            throw new \InvalidArgumentException('License status must be active, blocked, or inactive.');
+        }
+
+        $license = $this->getDetail($licenseId);
+        if ($license === null) {
+            throw new \RuntimeException('License not found.');
+        }
+
+        $this->db->execute(
+            'UPDATE licenses
+             SET status = :status
+             WHERE id = :licenseId',
+            [
+                'status' => $status,
+                'licenseId' => $licenseId,
+            ]
+        );
+
+        $updated = $this->getDetail($licenseId);
+        if ($updated === null) {
+            throw new \RuntimeException('License not found after update.');
+        }
+
+        return $updated;
+    }
+
+    public function logs(int $licenseId, int $page = 1, int $pageSize = 20): array
+    {
+        $page = max(1, $page);
+        $pageSize = min(100, max(10, $pageSize));
+        $offset = ($page - 1) * $pageSize;
+
+        $totalRow = $this->db->selectOne(
+            'SELECT COUNT(*) AS total
+             FROM audit_logs
+             WHERE target_type = :targetType
+               AND target_id = :targetId',
+            [
+                'targetType' => 'license',
+                'targetId' => (string) $licenseId,
+            ]
+        );
+
+        $rows = $this->db->select(
+            'SELECT id, product_id, actor_type, actor_id, action_code, target_type, target_id, ip_address, metadata_json, created_at
+             FROM audit_logs
+             WHERE target_type = :targetType
+               AND target_id = :targetId
+             ORDER BY created_at DESC
+             LIMIT ' . $pageSize . ' OFFSET ' . $offset,
+            [
+                'targetType' => 'license',
+                'targetId' => (string) $licenseId,
+            ]
+        );
+
+        $total = (int) ($totalRow['total'] ?? 0);
+
+        return [
+            'items' => array_map(
+                static function (array $row): array {
+                    $metadata = null;
+                    if (!empty($row['metadata_json']) && is_string($row['metadata_json'])) {
+                        $decoded = json_decode($row['metadata_json'], true);
+                        $metadata = is_array($decoded) ? $decoded : null;
+                    }
+
+                    return [
+                        'id' => (int) $row['id'],
+                        'productId' => $row['product_id'] === null ? null : (int) $row['product_id'],
+                        'actorType' => (string) $row['actor_type'],
+                        'actorId' => (string) $row['actor_id'],
+                        'actionCode' => (string) $row['action_code'],
+                        'targetType' => (string) $row['target_type'],
+                        'targetId' => (string) $row['target_id'],
+                        'ipAddress' => $row['ip_address'],
+                        'metadata' => $metadata,
+                        'createdAt' => $row['created_at'],
+                    ];
+                },
+                $rows
+            ),
+            'pagination' => [
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'total' => $total,
+                'totalPages' => max(1, (int) ceil($total / $pageSize)),
+            ],
+        ];
     }
 
     public function issueChallenge(string $productCode, string $machineHash, string $signatureSubject, int $ttlSeconds = 300): array
@@ -295,7 +504,8 @@ final class LicenseService
         );
 
         $id = (int) $this->db->lastInsertId();
-        return $this->db->selectOne('SELECT * FROM licenses WHERE id = :id LIMIT 1', ['id' => $id]) ?? [];
+
+        return $this->getDetail($id) ?? [];
     }
 
     public function activateLicense(array $product, string $cardKey, string $machineHash): array
@@ -367,6 +577,44 @@ final class LicenseService
             'machineId' => $machineHash,
             'expiresAt' => $license['expires_at'],
             'onlineWindowSeconds' => 300,
+        ];
+    }
+
+    private function buildListWhereSql(?int $productId, string $status, string $query, array &$params): string
+    {
+        $clauses = [];
+
+        if ($productId !== null) {
+            $clauses[] = 'l.product_id = :productId';
+            $params['productId'] = $productId;
+        }
+
+        if ($status !== '' && $status !== 'all') {
+            $clauses[] = 'l.status = :status';
+            $params['status'] = $status;
+        }
+
+        if ($query !== '') {
+            $clauses[] = '(l.license_key LIKE :query OR p.name LIKE :query)';
+            $params['query'] = '%' . $query . '%';
+        }
+
+        return $clauses === [] ? '' : ' WHERE ' . implode(' AND ', $clauses);
+    }
+
+    private function mapLicenseRow(array $row): array
+    {
+        return [
+            'id' => (int) $row['id'],
+            'product_id' => (int) $row['product_id'],
+            'license_key' => (string) $row['license_key'],
+            'license_type' => (string) ($row['license_type'] ?? 'standard'),
+            'status' => (string) $row['status'],
+            'expires_at' => $row['expires_at'],
+            'max_bindings' => (int) $row['max_bindings'],
+            'product_name' => (string) $row['product_name'],
+            'active_binding_count' => (int) ($row['active_binding_count'] ?? 0),
+            'created_at' => $row['created_at'] ?? null,
         ];
     }
 }
