@@ -51,8 +51,10 @@ export type ProductRecord = {
   product_code: string;
   name: string;
   status: string;
+  client_app_key: string;
   trial_duration_minutes: number;
   heartbeat_interval_seconds: number;
+  offline_grace_minutes?: number;
 };
 
 export type ProductPolicy = {
@@ -60,11 +62,13 @@ export type ProductPolicy = {
   productCode: string;
   productName: string;
   productDefaults: {
+    trialEnabled: boolean;
     trialDurationMinutes: number;
     heartbeatIntervalSeconds: number;
     offlineGraceMinutes: number;
   };
   trialPolicy: {
+    trialEnabled: boolean;
     trialDurationMinutes: number;
     heartbeatIntervalSeconds: number;
     offlineGraceMinutes: number;
@@ -198,4 +202,20 @@ export type LicenseLogRecord = {
 export type LicenseLogResponse = {
   items: LicenseLogRecord[];
   pagination: PaginationMeta;
+};
+
+export type ProductIntegration = {
+  productId: number;
+  productCode: string;
+  productName: string;
+  clientAppKey: string;
+  serverUrl: string;
+  certPins: string;
+  trialEnabled: boolean;
+  sdkParameters: {
+    product_code: string;
+    server_url: string;
+    client_app_key: string;
+    cert_pins: string;
+  };
 };

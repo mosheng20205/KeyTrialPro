@@ -14,6 +14,23 @@ const defaultLicensePolicy = {
   requiresManualReviewAfterLimit: true,
 };
 
+function normalizePolicy(policy: ProductPolicy): ProductPolicy {
+  const trialEnabled = policy.trialPolicy.trialEnabled ?? policy.trialPolicy.trialDurationMinutes > 0;
+  const defaultTrialEnabled = policy.productDefaults.trialEnabled ?? policy.productDefaults.trialDurationMinutes > 0;
+
+  return {
+    ...policy,
+    productDefaults: {
+      ...policy.productDefaults,
+      trialEnabled: defaultTrialEnabled,
+    },
+    trialPolicy: {
+      ...policy.trialPolicy,
+      trialEnabled,
+    },
+  };
+}
+
 function normalizeRiskRule(rule: RiskRule): RiskRule {
   return {
     ...rule,
@@ -47,7 +64,7 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
         return;
       }
 
-      setPolicy(nextPolicy);
+      setPolicy(normalizePolicy(nextPolicy));
       setSecurityProfile(nextSecurityProfile);
       setRiskRules(nextRiskRules.map(normalizeRiskRule));
     });
@@ -78,6 +95,21 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
     });
   };
 
+  const updateTrialEnabled = (enabled: boolean) => {
+    setPolicy({
+      ...policy,
+      trialPolicy: {
+        ...policy.trialPolicy,
+        trialEnabled: enabled,
+        trialDurationMinutes: enabled
+          ? policy.trialPolicy.trialDurationMinutes > 0
+            ? policy.trialPolicy.trialDurationMinutes
+            : 60
+          : 0,
+      },
+    });
+  };
+
   const updateLicensePolicy = <K extends keyof typeof defaultLicensePolicy>(
     key: K,
     value: (typeof defaultLicensePolicy)[K],
@@ -101,6 +133,7 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
 
   async function savePolicy() {
     await api.savePolicy(productCode, {
+      trialEnabled: currentPolicy.trialPolicy.trialEnabled,
       trialDurationMinutes: currentPolicy.trialPolicy.trialDurationMinutes,
       heartbeatIntervalSeconds: currentPolicy.trialPolicy.heartbeatIntervalSeconds,
       offlineGraceMinutes: currentPolicy.trialPolicy.offlineGraceMinutes,
@@ -168,12 +201,21 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
           <article className="policy-card">
             <p className="eyebrow">试用策略</p>
             <div className="form-grid">
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={currentPolicy.trialPolicy.trialEnabled}
+                  onChange={(event) => updateTrialEnabled(event.target.checked)}
+                />
+                允许试用
+              </label>
               <label>
                 试用时长（分钟）
                 <input
                   type="number"
                   value={currentPolicy.trialPolicy.trialDurationMinutes}
                   onChange={(event) => updateTrialPolicy("trialDurationMinutes", Number(event.target.value))}
+                  disabled={!currentPolicy.trialPolicy.trialEnabled}
                 />
               </label>
               <label>
@@ -182,6 +224,7 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
                   type="number"
                   value={currentPolicy.trialPolicy.heartbeatIntervalSeconds}
                   onChange={(event) => updateTrialPolicy("heartbeatIntervalSeconds", Number(event.target.value))}
+                  disabled={!currentPolicy.trialPolicy.trialEnabled}
                 />
               </label>
               <label>
@@ -190,6 +233,7 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
                   type="number"
                   value={currentPolicy.trialPolicy.offlineGraceMinutes}
                   onChange={(event) => updateTrialPolicy("offlineGraceMinutes", Number(event.target.value))}
+                  disabled={!currentPolicy.trialPolicy.trialEnabled}
                 />
               </label>
               <label>
@@ -198,6 +242,7 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
                   type="number"
                   value={currentPolicy.trialPolicy.maxRebindCount}
                   onChange={(event) => updateTrialPolicy("maxRebindCount", Number(event.target.value))}
+                  disabled={!currentPolicy.trialPolicy.trialEnabled}
                 />
               </label>
               <label>
@@ -205,6 +250,7 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
                 <select
                   value={currentPolicy.trialPolicy.degradeMode}
                   onChange={(event) => updateTrialPolicy("degradeMode", event.target.value)}
+                  disabled={!currentPolicy.trialPolicy.trialEnabled}
                 >
                   <option value="read_only">只读</option>
                   <option value="block">阻止使用</option>
@@ -212,6 +258,11 @@ export function PoliciesPage({ productCode }: PoliciesPageProps) {
                 </select>
               </label>
             </div>
+            {!currentPolicy.trialPolicy.trialEnabled ? (
+              <div className="info-banner info-banner-warning">
+                当前产品已关闭试用。客户端调用 `StartTrial` 时会直接收到不可试用错误，不会再创建试用会话。
+              </div>
+            ) : null}
           </article>
 
           <article className="policy-card">

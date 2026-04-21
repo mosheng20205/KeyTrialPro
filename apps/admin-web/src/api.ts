@@ -1,5 +1,5 @@
 import { mockApprovals, mockAuditLogs, mockLicenses, mockPlatformOverview, mockPolicy, mockProductOverview, mockProducts, mockRiskEvents, mockRiskRules, mockSecurityProfile } from "./mockData";
-import type { AdminProfile, ApprovalTicket, AuditLogRecord, LicenseDetail, LicenseListResponse, LicenseLogResponse, LicenseRecord, PlatformOverview, ProductOverview, ProductPolicy, ProductRecord, RiskEvent, RiskRule, SecurityProfile, TrendPoint } from "./types";
+import type { AdminProfile, ApprovalTicket, AuditLogRecord, LicenseDetail, LicenseListResponse, LicenseLogResponse, LicenseRecord, PlatformOverview, ProductIntegration, ProductOverview, ProductPolicy, ProductRecord, RiskEvent, RiskRule, SecurityProfile, TrendPoint } from "./types";
 
 const TOKEN_KEY = "ktp_token";
 
@@ -268,8 +268,15 @@ export const api = {
     const suffix = productCode ? `?productId=${productCode}` : "";
     return getJson(`/api/admin/dashboard/trends.php${suffix}`, mockPlatformOverview.trend);
   },
-  createProduct(data: Record<string, unknown>): Promise<{ product: unknown }> {
-    return postJson("/api/admin/products/create.php", data, { product: {} });
+  createProduct(data: Record<string, unknown>): Promise<{ product: ProductRecord }> {
+    return requestJson("/api/admin/products/create.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  },
+  productIntegration(productCode: string): Promise<ProductIntegration> {
+    return requestJson(`/api/admin/products/integration.php?productId=${encodeURIComponent(productCode)}`);
   },
   createLicense(data: Record<string, unknown>): Promise<{ license: unknown }> {
     return postJson("/api/admin/licenses/create.php", data, { license: {} });

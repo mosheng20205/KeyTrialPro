@@ -370,6 +370,10 @@ final class LicenseService
 
         $trialSessionId = bin2hex(random_bytes(8));
         $durationMinutes = (int) ($product['trial_duration_minutes'] ?? 60);
+        if ($durationMinutes <= 0) {
+            throw new \RuntimeException('Trial is disabled for this product.');
+        }
+
         $offlineGraceMinutes = (int) ($product['offline_grace_minutes'] ?? 5);
         $startedAt = gmdate('Y-m-d H:i:s');
         $expiresAt = gmdate('Y-m-d H:i:s', time() + ($durationMinutes * 60));

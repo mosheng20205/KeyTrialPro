@@ -24,9 +24,9 @@ export const mockPlatformOverview: PlatformOverview = {
 };
 
 export const mockProducts: ProductRecord[] = [
-  { id: 1, product_code: "desktop-pro", name: "Desktop Pro", status: "active", trial_duration_minutes: 60, heartbeat_interval_seconds: 180 },
-  { id: 2, product_code: "studio-max", name: "Studio Max", status: "active", trial_duration_minutes: 1440, heartbeat_interval_seconds: 300 },
-  { id: 3, product_code: "lite-agent", name: "Lite Agent", status: "active", trial_duration_minutes: 30, heartbeat_interval_seconds: 120 },
+  { id: 1, product_code: "desktop-pro", name: "Desktop Pro", status: "active", client_app_key: "desktop-pro-app-key", trial_duration_minutes: 60, heartbeat_interval_seconds: 180, offline_grace_minutes: 5 },
+  { id: 2, product_code: "studio-max", name: "Studio Max", status: "active", client_app_key: "studio-max-app-key", trial_duration_minutes: 1440, heartbeat_interval_seconds: 300, offline_grace_minutes: 10 },
+  { id: 3, product_code: "lite-agent", name: "Lite Agent", status: "active", client_app_key: "lite-agent-app-key", trial_duration_minutes: 30, heartbeat_interval_seconds: 120, offline_grace_minutes: 5 },
 ];
 
 export const mockProductOverview: ProductOverview = {
@@ -67,11 +67,13 @@ export const mockPolicy: ProductPolicy = {
   productCode: "desktop-pro",
   productName: "Desktop Pro",
   productDefaults: {
+    trialEnabled: true,
     trialDurationMinutes: 60,
     heartbeatIntervalSeconds: 180,
     offlineGraceMinutes: 5,
   },
   trialPolicy: {
+    trialEnabled: true,
     trialDurationMinutes: 60,
     heartbeatIntervalSeconds: 180,
     offlineGraceMinutes: 5,

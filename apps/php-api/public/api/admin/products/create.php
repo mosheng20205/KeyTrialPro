@@ -22,6 +22,7 @@ try {
         'product_code' => $productCode,
         'name' => $name,
         'client_app_key' => (string) $request->input('client_app_key', ''),
+        'trial_enabled' => $request->input('trial_enabled', true),
         'trial_duration_minutes' => (int) $request->input('trial_duration_minutes', 60),
         'heartbeat_interval_seconds' => (int) $request->input('heartbeat_interval_seconds', 180),
         'offline_grace_minutes' => (int) $request->input('offline_grace_minutes', 5),
@@ -29,6 +30,7 @@ try {
     ]);
 
     $app['policyService']->save($product, [
+        'trialEnabled' => $request->input('trial_enabled', true),
         'trialDurationMinutes' => (int) ($product['trial_duration_minutes'] ?? 60),
         'heartbeatIntervalSeconds' => (int) ($product['heartbeat_interval_seconds'] ?? 180),
         'offlineGraceMinutes' => (int) ($product['offline_grace_minutes'] ?? 5),

@@ -14,7 +14,16 @@ final class PolicyService
 
     public function save(array $product, array $payload): array
     {
-        $trialDurationMinutes = max(1, (int) ($payload['trialDurationMinutes'] ?? $product['trial_duration_minutes'] ?? 60));
+        $trialEnabled = $this->coerceBoolean(
+            $payload['trialEnabled'] ?? (((int) ($product['trial_duration_minutes'] ?? 60)) > 0),
+            true
+        );
+        $rawTrialDurationMinutes = array_key_exists('trialDurationMinutes', $payload)
+            ? (int) $payload['trialDurationMinutes']
+            : (int) ($product['trial_duration_minutes'] ?? 60);
+        $trialDurationMinutes = $trialEnabled
+            ? max(1, $rawTrialDurationMinutes > 0 ? $rawTrialDurationMinutes : 60)
+            : 0;
         $heartbeatIntervalSeconds = max(30, (int) ($payload['heartbeatIntervalSeconds'] ?? $product['heartbeat_interval_seconds'] ?? 180));
         $offlineGraceMinutes = max(0, (int) ($payload['offlineGraceMinutes'] ?? $product['offline_grace_minutes'] ?? 5));
         $maxRebindCount = max(0, (int) ($payload['maxRebindCount'] ?? 3));
@@ -86,6 +95,7 @@ final class PolicyService
         return [
             'productId' => (int) $product['id'],
             'productCode' => $product['product_code'],
+            'trialEnabled' => $trialEnabled,
             'trialDurationMinutes' => $trialDurationMinutes,
             'heartbeatIntervalSeconds' => $heartbeatIntervalSeconds,
             'offlineGraceMinutes' => $offlineGraceMinutes,
@@ -130,11 +140,13 @@ final class PolicyService
             'productCode' => $product['product_code'],
             'productName' => $product['name'],
             'productDefaults' => [
+                'trialEnabled' => (int) $product['trial_duration_minutes'] > 0,
                 'trialDurationMinutes' => (int) $product['trial_duration_minutes'],
                 'heartbeatIntervalSeconds' => (int) $product['heartbeat_interval_seconds'],
                 'offlineGraceMinutes' => (int) $product['offline_grace_minutes'],
             ],
             'trialPolicy' => [
+                'trialEnabled' => (int) ($trialPolicy['trial_duration_minutes'] ?? $product['trial_duration_minutes']) > 0,
                 'trialDurationMinutes' => (int) ($trialPolicy['trial_duration_minutes'] ?? $product['trial_duration_minutes']),
                 'heartbeatIntervalSeconds' => (int) ($trialPolicy['heartbeat_interval_seconds'] ?? $product['heartbeat_interval_seconds']),
                 'offlineGraceMinutes' => (int) ($trialPolicy['offline_grace_minutes'] ?? $product['offline_grace_minutes']),
@@ -152,5 +164,19 @@ final class PolicyService
                 $licensePolicies
             ),
         ];
+    }
+
+    private function coerceBoolean(mixed $value, bool $default): bool
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        $normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        return $normalized ?? $default;
     }
 }

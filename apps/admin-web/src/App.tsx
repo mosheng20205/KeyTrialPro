@@ -61,11 +61,19 @@ function AdminApp() {
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>(mockAuditLogs);
   const currentNav = getNavFromLocation(location.pathname, location.search);
 
-  useEffect(() => {
+  const refreshProducts = () => {
     api.products().then((data) => {
       setProducts(data);
     });
+  };
+
+  const refreshPlatformOverview = () => {
     api.platformOverview().then(setPlatformOverview);
+  };
+
+  useEffect(() => {
+    refreshProducts();
+    refreshPlatformOverview();
   }, []);
 
   useEffect(() => {
@@ -93,6 +101,15 @@ function AdminApp() {
     api.approvals(activeProduct).then(setApprovals);
   };
 
+  const handleProductCreated = (product: ProductRecord) => {
+    setProducts((currentProducts) => {
+      const remainingProducts = currentProducts.filter((currentProduct) => currentProduct.product_code !== product.product_code);
+      return [...remainingProducts, product].sort((left, right) => left.name.localeCompare(right.name, "zh-CN"));
+    });
+    setActiveProduct(product.product_code);
+    refreshPlatformOverview();
+  };
+
   const activeProductRecord = products.find((product) => product.product_code === activeProduct);
 
   return (
@@ -117,7 +134,7 @@ function AdminApp() {
       {currentNav === "policies" && <PoliciesPage productCode={activeProduct} />}
       {currentNav === "audit" && <AuditPage logs={auditLogs} />}
       {currentNav === "account" && <AdminAccountPage />}
-      {currentNav === "add-product" && <AddProductPage />}
+      {currentNav === "add-product" && <AddProductPage onCreated={handleProductCreated} />}
       {currentNav === "add-license" && <AddLicensePage />}
     </AppShell>
   );

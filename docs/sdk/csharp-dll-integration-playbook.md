@@ -189,6 +189,30 @@ using var verification = client.Verify();
 
 `cert_pins` 本质上是服务端 HTTPS 叶子证书原始证书内容做 SHA-256 后的十六进制小写字符串。
 
+它要这样理解：
+
+- 它不是后台接口动态下发的业务字段
+- 它也不是“某个软件专属固定值”
+- 它和 `product_code` 没有直接绑定关系
+- 它实际绑定的是 `server_url` 当前返回的 HTTPS 叶子证书
+
+换句话说，只要两个产品最终都请求同一个 `https://...` 服务地址，并且握手拿到的是同一张叶子证书，那么它们可以使用同一个 `cert_pins`。
+
+当前项目的原生 DLL 校验规则也是按这个逻辑实现的：
+
+- `cert_pins` 必须是小写十六进制
+- 支持多个 pin，用英文逗号分隔
+- DLL 会在 TLS 握手后读取服务器叶子证书
+- 然后对证书原始二进制做 SHA-256
+- 只要结果命中你配置的任意一个 pin，就通过校验
+
+服务端配置里也预留了同一份 pinset 环境变量：
+
+- `apps/php-api/.env.example`
+- `TLS_PINSET_SHA256=replace-with-production-pin`
+
+这意味着正式部署时，客户端 SDK 和服务端运维侧都应该清楚当前线上证书对应的 pin 值。
+
 WinForms demo 已经内置了获取方法，逻辑在：
 
 - `sdk/csharp/KeyTrialPro.WinFormsTester/MainForm.cs`
@@ -201,11 +225,38 @@ WinForms demo 已经内置了获取方法，逻辑在：
 4. 对证书原始二进制做 SHA-256
 5. 输出 64 位十六进制字符串
 
+如果你不想自己写代码，最直接的办法就是运行 WinFormsTester，然后点击“获取 Cert Pin”按钮。
+
+如果你想在实施或运维机器上手工获取，也可以直接用下面这段 PowerShell：
+
+```powershell
+$serverUrl = "https://your-domain.com"
+$uri = [Uri]$serverUrl
+
+$tcp = [System.Net.Sockets.TcpClient]::new()
+$tcp.Connect($uri.Host, $(if ($uri.Port -gt 0) { $uri.Port } else { 443 }))
+
+$ssl = [System.Net.Security.SslStream]::new(
+    $tcp.GetStream(),
+    $false,
+    { param($sender, $cert, $chain, $errors) $true }
+)
+
+$ssl.AuthenticateAsClient($uri.Host)
+$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($ssl.RemoteCertificate)
+$pin = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($cert.RawData)).ToLowerInvariant()
+
+$ssl.Dispose()
+$tcp.Dispose()
+$pin
+```
+
 注意事项：
 
 - 只能对 `HTTPS` 地址取 pin
 - 证书更新后 pin 也会变化
 - 如果服务端未来会切证书，建议同时配置多个 pin
+- 如果前面接了 CDN、反向代理或云 WAF，要取的是客户端实际访问域名当前返回的证书 pin
 
 示例格式：
 

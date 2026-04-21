@@ -1,23 +1,28 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import type { ProductRecord } from "../types";
 
-export function AddProductPage() {
+type AddProductPageProps = {
+  onCreated?: (product: ProductRecord) => void;
+};
+
+export function AddProductPage({ onCreated }: AddProductPageProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
     product_code: "",
     name: "",
     client_app_key: "",
+    trial_enabled: true,
     trial_duration_minutes: "60",
     heartbeat_interval_seconds: "180",
     offline_grace_minutes: "5",
     status: "active",
   });
 
-  const update = (field: string, value: string) => {
+  const update = (field: "product_code" | "name" | "client_app_key" | "trial_duration_minutes" | "heartbeat_interval_seconds" | "offline_grace_minutes" | "status", value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -27,18 +32,19 @@ export function AddProductPage() {
     setLoading(true);
 
     try {
-      await api.createProduct({
+      const created = await api.createProduct({
         product_code: form.product_code,
         name: form.name,
         client_app_key: form.client_app_key || undefined,
-        trial_duration_minutes: parseInt(form.trial_duration_minutes, 10),
+        trial_enabled: form.trial_enabled,
+        trial_duration_minutes: form.trial_enabled ? parseInt(form.trial_duration_minutes, 10) : 0,
         heartbeat_interval_seconds: parseInt(form.heartbeat_interval_seconds, 10),
         offline_grace_minutes: parseInt(form.offline_grace_minutes, 10),
         status: form.status,
       });
 
-      setSuccess(true);
-      setTimeout(() => navigate("/admin/?view=platform"), 1500);
+      onCreated?.(created.product);
+      navigate("/admin/?view=product");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "创建失败，请重试");
     } finally {
@@ -89,6 +95,15 @@ export function AddProductPage() {
             />
           </div>
 
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={form.trial_enabled}
+              onChange={(event) => setForm((prev) => ({ ...prev, trial_enabled: event.target.checked }))}
+            />
+            <span>允许试用</span>
+          </label>
+
           <div className="form-group">
             <label htmlFor="trial_duration_minutes">试用时长（分钟）</label>
             <input
@@ -97,6 +112,7 @@ export function AddProductPage() {
               min="1"
               value={form.trial_duration_minutes}
               onChange={(event) => update("trial_duration_minutes", event.target.value)}
+              disabled={!form.trial_enabled}
             />
           </div>
 
@@ -108,6 +124,7 @@ export function AddProductPage() {
               min="30"
               value={form.heartbeat_interval_seconds}
               onChange={(event) => update("heartbeat_interval_seconds", event.target.value)}
+              disabled={!form.trial_enabled}
             />
           </div>
 
@@ -119,6 +136,7 @@ export function AddProductPage() {
               min="0"
               value={form.offline_grace_minutes}
               onChange={(event) => update("offline_grace_minutes", event.target.value)}
+              disabled={!form.trial_enabled}
             />
           </div>
 
@@ -131,7 +149,6 @@ export function AddProductPage() {
           </div>
 
           {error ? <div className="alert alert-error">{error}</div> : null}
-          {success ? <div className="alert alert-success">产品创建成功，即将返回控制台。</div> : null}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={loading}>
