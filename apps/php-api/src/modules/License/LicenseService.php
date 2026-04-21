@@ -470,6 +470,23 @@ final class LicenseService
         );
     }
 
+    public function unregisterPresence(int $productId, string $machineId, ?string $ipAddress = null): void
+    {
+        $this->db->execute(
+            'UPDATE presence_sessions
+             SET status = :status,
+                 last_ip = COALESCE(:lastIp, last_ip)
+             WHERE product_id = :productId
+               AND machine_id = :machineId',
+            [
+                'status' => 'offline',
+                'lastIp' => $ipAddress,
+                'productId' => $productId,
+                'machineId' => $machineId,
+            ]
+        );
+    }
+
     public function activeLicenseStatus(int $productId, string $machineId): ?array
     {
         $license = $this->db->selectOne(

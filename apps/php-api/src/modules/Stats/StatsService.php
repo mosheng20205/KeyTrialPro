@@ -21,8 +21,9 @@ final class StatsService
         $online = $this->db->selectOne(
             'SELECT COUNT(DISTINCT machine_id) AS count
              FROM presence_sessions
-             WHERE last_seen_at >= :onlineThreshold',
-            ['onlineThreshold' => $onlineThreshold]
+             WHERE status = :status
+               AND last_seen_at >= :onlineThreshold',
+            ['status' => 'online', 'onlineThreshold' => $onlineThreshold]
         );
         $trialActive = $this->db->selectOne('SELECT COUNT(*) AS count FROM trial_sessions WHERE status = \'active\' AND expires_at > UTC_TIMESTAMP()');
         $approvals = $this->db->selectOne('SELECT COUNT(*) AS count FROM approval_tickets WHERE status IN (\'pending\', \'under_review\')');
@@ -56,8 +57,9 @@ final class StatsService
             'SELECT COUNT(DISTINCT machine_id) AS count
              FROM presence_sessions
              WHERE product_id = :productId
+               AND status = :status
                AND last_seen_at >= :onlineThreshold',
-            ['productId' => $productId, 'onlineThreshold' => $onlineThreshold]
+            ['productId' => $productId, 'status' => 'online', 'onlineThreshold' => $onlineThreshold]
         );
         $trialStarted = $this->db->selectOne(
             'SELECT COUNT(*) AS count FROM trial_sessions WHERE product_id = :productId AND DATE(created_at) = UTC_DATE()',

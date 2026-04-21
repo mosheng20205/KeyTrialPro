@@ -14,6 +14,7 @@
 - `ActivateLicense`
 - `VerifyLicense`
 - `Heartbeat`
+- `ReportOffline`
 - `StartTrial`
 - `GetTrialStatus`
 - `RequestRebind`
@@ -25,6 +26,7 @@ The server always owns the actual expiration decision. The client SDK must:
 - refresh its status at startup
 - refresh before critical features
 - send periodic heartbeats
+- report offline during graceful shutdown when possible
 - stop relying on local wall-clock time after the short offline grace expires
 
 ## Authorization Status

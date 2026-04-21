@@ -10,6 +10,20 @@ All wrappers call the same DLL exports defined in [`keytrialpro_sdk.h`](/T:/gith
 - stable function list across Python, C#, and E language integrations
 - `cert_pins` in `KtpInitOptions` must be a comma-separated list of lowercase SHA-256 leaf certificate pins in hex form
 
+## Current Export Surface
+
+- `KtpInit`
+- `KtpCollectFingerprintJson`
+- `KtpRequestChallengeJson`
+- `KtpActivateLicenseJson`
+- `KtpVerifyLicenseJson`
+- `KtpHeartbeatJson`
+- `KtpReportOfflineJson`
+- `KtpStartTrialJson`
+- `KtpGetTrialStatusJson`
+- `KtpRequestRebindJson`
+- `KtpGetLastError`
+
 ## Active Native Checks
 
 - leaf certificate TLS pinning after WinHTTP receives the server certificate

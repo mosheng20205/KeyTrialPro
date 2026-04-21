@@ -10,6 +10,7 @@
 - `KtpActivateLicenseJson`
 - `KtpVerifyLicenseJson`
 - `KtpHeartbeatJson`
+- `KtpReportOfflineJson`
 - `KtpStartTrialJson`
 - `KtpGetTrialStatusJson`
 - `KtpRequestRebindJson`
@@ -21,4 +22,3 @@
 - 字符串编码：ANSI 或 UTF-8 缓冲区
 - 所有复杂返回值统一为 JSON 字符串，便于易语言直接解析
 - 关键安全逻辑仍在 DLL 内，不在易语言层暴露
-

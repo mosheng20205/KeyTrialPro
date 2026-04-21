@@ -46,6 +46,7 @@ var client = new KeyTrialClient(productCode, serverUrl, clientAppKey, certPins);
 - `Activate(cardKey)`
 - `Verify()`
 - `Heartbeat()`
+- `ReportOffline()`
 - `StartTrial()`
 - `GetTrialStatus()`
 - `RequestRebind(reason)`
@@ -80,6 +81,7 @@ var client = new KeyTrialClient(productCode, serverUrl, clientAppKey, certPins);
 3. 激活时调用 `Activate(cardKey)`
 4. 日常启动或关键功能前调用 `Verify()`
 5. 长时间在线时按策略调用 `Heartbeat()`
+6. 应用正常退出时调用 `ReportOffline()`
 
 最常见的两条链路：
 
@@ -181,6 +183,11 @@ using var verification = client.Verify();
 - 同时输出 `status`、`authorized` 和 `expiresAt`
 
 如果你在新项目里先不想接 UI，优先照这个模式落地。
+
+补充建议：
+
+- 如果你的桌面程序有明确的退出事件，例如 WPF 的 `OnExit`、WinForms 的 `FormClosing`、托盘程序的“退出”命令，建议在这里调用一次 `ReportOffline()`
+- 这样管理后台里的“当前在线”会立刻下降，而不是继续等待在线窗口自然过期
 
 ## 6.2 WinFormsTester
 

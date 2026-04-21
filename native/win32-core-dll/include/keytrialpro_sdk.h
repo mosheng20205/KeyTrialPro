@@ -43,6 +43,7 @@ KTP_API int KTP_CALL KtpRequestChallengeJson(char* buffer, int buffer_size);
 KTP_API int KTP_CALL KtpActivateLicenseJson(const char* card_key, char* buffer, int buffer_size);
 KTP_API int KTP_CALL KtpVerifyLicenseJson(char* buffer, int buffer_size);
 KTP_API int KTP_CALL KtpHeartbeatJson(char* buffer, int buffer_size);
+KTP_API int KTP_CALL KtpReportOfflineJson(char* buffer, int buffer_size);
 KTP_API int KTP_CALL KtpStartTrialJson(char* buffer, int buffer_size);
 KTP_API int KTP_CALL KtpGetTrialStatusJson(char* buffer, int buffer_size);
 KTP_API int KTP_CALL KtpRequestRebindJson(const char* reason, char* buffer, int buffer_size);
@@ -53,4 +54,3 @@ KTP_API int KTP_CALL KtpGetLastError(char* buffer, int buffer_size);
 #endif
 
 #endif
-

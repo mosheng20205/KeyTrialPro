@@ -6,8 +6,8 @@ KtpRequestChallengeJson(buffer, buffer_size) -> int
 KtpActivateLicenseJson(card_key, buffer, buffer_size) -> int
 KtpVerifyLicenseJson(buffer, buffer_size) -> int
 KtpHeartbeatJson(buffer, buffer_size) -> int
+KtpReportOfflineJson(buffer, buffer_size) -> int
 KtpStartTrialJson(buffer, buffer_size) -> int
 KtpGetTrialStatusJson(buffer, buffer_size) -> int
 KtpRequestRebindJson(reason, buffer, buffer_size) -> int
 KtpGetLastError(buffer, buffer_size) -> int
-

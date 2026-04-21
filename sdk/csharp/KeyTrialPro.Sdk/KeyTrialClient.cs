@@ -32,6 +32,8 @@ public sealed class KeyTrialClient
 
     public JsonDocument Heartbeat() => CallJson(NativeMethods.KtpHeartbeatJson);
 
+    public JsonDocument ReportOffline() => CallJson(NativeMethods.KtpReportOfflineJson);
+
     public JsonDocument StartTrial() => CallJson(NativeMethods.KtpStartTrialJson);
 
     public JsonDocument GetTrialStatus() => CallJson(NativeMethods.KtpGetTrialStatusJson);

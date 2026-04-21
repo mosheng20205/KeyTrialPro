@@ -1176,6 +1176,22 @@ int KTP_CALL KtpHeartbeatJson(char* buffer, int buffer_size) {
     return copy_string(response, buffer, buffer_size);
 }
 
+int KTP_CALL KtpReportOfflineJson(char* buffer, int buffer_size) {
+    const auto fingerprint = collect_fingerprint();
+    const auto body = build_signed_body(
+        "",
+        "\"sdkVersion\":\"native-0.3\",\"machineFingerprint\":" + fingerprint_to_json(fingerprint)
+    );
+    std::string response;
+    if (!http_post_json(api_path("/api/client/offline.php"), body, response)) {
+        if (current_error().empty()) {
+            set_error("Failed to report offline status via server.");
+        }
+        return KTP_STATUS_INTERNAL_ERROR;
+    }
+    return copy_string(response, buffer, buffer_size);
+}
+
 int KTP_CALL KtpStartTrialJson(char* buffer, int buffer_size) {
     const auto fingerprint = collect_fingerprint();
     std::string challenge_response;

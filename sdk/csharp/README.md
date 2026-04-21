@@ -19,6 +19,7 @@ var client = new KeyTrialClient(
 - `Activate`
 - `Verify`
 - `Heartbeat`
+- `ReportOffline`
 - `StartTrial`
 - `GetTrialStatus`
 - `RequestRebind`

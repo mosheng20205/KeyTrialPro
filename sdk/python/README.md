@@ -16,3 +16,5 @@ client = KeyTrialClient(
 )
 print(client.start_trial())
 ```
+
+Call `report_offline()` during graceful shutdown if you want the admin console online-count to drop immediately instead of waiting for the heartbeat window to expire.

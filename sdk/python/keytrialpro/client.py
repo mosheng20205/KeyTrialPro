@@ -44,6 +44,9 @@ class KeyTrialClient:
     def heartbeat(self) -> dict[str, Any]:
         return self._call_json(self._lib.KtpHeartbeatJson)
 
+    def report_offline(self) -> dict[str, Any]:
+        return self._call_json(self._lib.KtpReportOfflineJson)
+
     def start_trial(self) -> dict[str, Any]:
         return self._call_json(self._lib.KtpStartTrialJson)
 
@@ -66,6 +69,7 @@ class KeyTrialClient:
         self._lib.KtpActivateLicenseJson.argtypes = [c_char_p, c_char_p, c_int]
         self._lib.KtpVerifyLicenseJson.argtypes = [c_char_p, c_int]
         self._lib.KtpHeartbeatJson.argtypes = [c_char_p, c_int]
+        self._lib.KtpReportOfflineJson.argtypes = [c_char_p, c_int]
         self._lib.KtpStartTrialJson.argtypes = [c_char_p, c_int]
         self._lib.KtpGetTrialStatusJson.argtypes = [c_char_p, c_int]
         self._lib.KtpRequestRebindJson.argtypes = [c_char_p, c_char_p, c_int]

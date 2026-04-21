@@ -33,6 +33,9 @@ internal static class NativeMethods
     internal static extern int KtpHeartbeatJson(StringBuilder buffer, int bufferSize);
 
     [DllImport("keytrialpro_sdk.dll", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
+    internal static extern int KtpReportOfflineJson(StringBuilder buffer, int bufferSize);
+
+    [DllImport("keytrialpro_sdk.dll", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
     internal static extern int KtpStartTrialJson(StringBuilder buffer, int bufferSize);
 
     [DllImport("keytrialpro_sdk.dll", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
@@ -44,4 +47,3 @@ internal static class NativeMethods
     [DllImport("keytrialpro_sdk.dll", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
     internal static extern int KtpGetLastError(StringBuilder buffer, int bufferSize);
 }
-
