@@ -32,18 +32,18 @@ try {
     );
     api_error($exception->getMessage(), 'VERIFY_FAILED', 409);
 }
-$app['licenseService']->registerPresence(
-    (int) $product['id'],
-    $summary['machineHash'],
-    (string) $request->input('sdkVersion', 'unknown'),
-    $_SERVER['REMOTE_ADDR'] ?? null
-);
 
 $licenseStatus = $app['licenseService']->activeLicenseStatus((int) $product['id'], $summary['machineHash']);
 $trialStatus = $app['licenseService']->trialStatus($productCode, $summary['machineHash']);
 $remainingTrialSeconds = 0;
-$status = 'ok';
+$status = 'not_licensed';
+$authorized = false;
 $expiresAt = $licenseStatus['expiresAt'] ?? null;
+
+if ($licenseStatus !== null) {
+    $status = 'active';
+    $authorized = true;
+}
 
 if ($trialStatus !== null) {
     $remainingTrialSeconds = (int) ($trialStatus['remainingSeconds'] ?? 0);
@@ -52,14 +52,29 @@ if ($trialStatus !== null) {
         $expiresAt = $trialStatus['expires_at'] ?? null;
     }
 
-    if ($licenseStatus === null && $remainingTrialSeconds === 0) {
-        $status = 'trial_expired';
+    if ($licenseStatus === null) {
+        if ($remainingTrialSeconds > 0) {
+            $status = 'trial_active';
+            $authorized = true;
+        } else {
+            $status = 'trial_expired';
+        }
     }
+}
+
+if ($authorized) {
+    $app['licenseService']->registerPresence(
+        (int) $product['id'],
+        $summary['machineHash'],
+        (string) $request->input('sdkVersion', 'unknown'),
+        $_SERVER['REMOTE_ADDR'] ?? null
+    );
 }
 
 api_ok([
     'status' => $status,
-    'online' => true,
+    'authorized' => $authorized,
+    'online' => $authorized,
     'remainingTrialSeconds' => $remainingTrialSeconds,
     'expiresAt' => $expiresAt,
     'riskLevel' => 'low',

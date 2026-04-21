@@ -36,18 +36,36 @@ if ($machineFingerprint !== []) {
     $app['riskService']->captureEnvironmentSignals((int) $product['id'], $machineId, $machineFingerprint);
 }
 
-$app['licenseService']->registerPresence(
-    (int) $product['id'],
-    $machineId,
-    (string) $request->input('sdkVersion', 'unknown'),
-    $_SERVER['REMOTE_ADDR'] ?? null
-);
-
+$licenseStatus = $app['licenseService']->activeLicenseStatus((int) $product['id'], $machineId);
 $trialStatus = $app['licenseService']->trialStatus($productCode, $machineId);
 $remainingTrialSeconds = (int) ($trialStatus['remainingSeconds'] ?? 0);
+$status = 'not_licensed';
+$authorized = false;
+$expiresAt = $licenseStatus['expiresAt'] ?? ($trialStatus['expires_at'] ?? null);
+
+if ($licenseStatus !== null) {
+    $status = 'active';
+    $authorized = true;
+} elseif ($trialStatus !== null && $remainingTrialSeconds > 0) {
+    $status = 'trial_active';
+    $authorized = true;
+} elseif ($trialStatus !== null) {
+    $status = 'trial_expired';
+}
+
+if ($authorized) {
+    $app['licenseService']->registerPresence(
+        (int) $product['id'],
+        $machineId,
+        (string) $request->input('sdkVersion', 'unknown'),
+        $_SERVER['REMOTE_ADDR'] ?? null
+    );
+}
 
 api_ok([
-    'status' => $remainingTrialSeconds === 0 && $trialStatus !== null ? 'trial_expired' : 'ok',
+    'status' => $status,
+    'authorized' => $authorized,
     'onlineWindowSeconds' => $app['config']['presence']['windowSeconds'],
     'remainingTrialSeconds' => $remainingTrialSeconds,
+    'expiresAt' => $expiresAt,
 ]);

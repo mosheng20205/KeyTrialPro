@@ -118,14 +118,29 @@ using var verification = client.Verify();
 至少同时满足：
 
 - `activation.success == true`
-- `activation.data.status` 有值
+- `activation.data.status` 是业务允许状态之一
 
 ### 5.2 验证成功
 
 至少同时满足：
 
 - `verification.success == true`
-- `verification.data.status` 有值
+- `verification.data.status == active`，或者
+- `verification.data.status == trial_active`
+
+不要再使用下面这种过宽的写法：
+
+- `success == true`
+- `status` 非空就放行
+
+当前推荐把 `data.status` 按下面语义处理：
+
+- `active`：存在有效正式授权，可以放行
+- `trial_active`：存在有效试用，可以放行
+- `trial_expired`：试用已过期，不能放行
+- `not_licensed`：没有正式授权，也没有可用试用，不能放行
+
+如果服务端同时返回了 `data.authorized`，客户端可以把它作为辅助字段；但为了兼容旧版本和跨语言对接，仍建议保留 `status` 白名单判断。
 
 ### 5.3 到期时间
 
@@ -163,7 +178,7 @@ using var verification = client.Verify();
 - 先 `Activate`
 - 再 `Verify`
 - 统一打印摘要 JSON
-- 同时输出 `status` 和 `expiresAt`
+- 同时输出 `status`、`authorized` 和 `expiresAt`
 
 如果你在新项目里先不想接 UI，优先照这个模式落地。
 

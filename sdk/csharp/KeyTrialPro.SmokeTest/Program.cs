@@ -24,6 +24,7 @@ using var verification = client.Verify();
 var activationSuccess = ReadBool(activation.RootElement, "success");
 var verificationSuccess = ReadBool(verification.RootElement, "success");
 var verificationStatus = ReadNestedString(verification.RootElement, "data", "status");
+var verificationAuthorized = verificationSuccess && IsAuthorizedStatus(verificationStatus);
 var expiresAt = FirstNonEmpty(
     ReadNestedString(verification.RootElement, "data", "expiresAt"),
     ReadNestedString(activation.RootElement, "data", "expiresAt"));
@@ -41,6 +42,7 @@ var summary = new
     activationSuccess,
     verificationSuccess,
     verificationStatus,
+    verificationAuthorized,
     expiresAt,
     expirationState,
     fingerprint = JsonSerializer.Deserialize<object>(fingerprint.RootElement.GetRawText()),
@@ -53,7 +55,7 @@ Console.WriteLine(JsonSerializer.Serialize(summary, new JsonSerializerOptions
     WriteIndented = true,
 }));
 
-if (!activationSuccess || !verificationSuccess || string.IsNullOrWhiteSpace(verificationStatus))
+if (!activationSuccess || !verificationAuthorized)
 {
     Environment.ExitCode = 1;
 }
@@ -99,4 +101,10 @@ static string? FirstNonEmpty(params string?[] candidates)
     }
 
     return null;
+}
+
+static bool IsAuthorizedStatus(string? status)
+{
+    return string.Equals(status, "active", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(status, "trial_active", StringComparison.OrdinalIgnoreCase);
 }
