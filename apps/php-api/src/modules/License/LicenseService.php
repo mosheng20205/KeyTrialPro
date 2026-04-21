@@ -21,14 +21,14 @@ final class LicenseService
         $pageSize = min(100, max(10, (int) ($filters['pageSize'] ?? 20)));
         $offset = ($page - 1) * $pageSize;
         $status = strtolower(trim((string) ($filters['status'] ?? '')));
+        $usage = $this->normalizeUsageFilter((string) ($filters['usage'] ?? ''));
         $query = trim((string) ($filters['query'] ?? ''));
 
         $params = [];
-        $whereSql = $this->buildListWhereSql($productId, $status, $query, $params);
-        $fromSql = ' FROM licenses l
-                     INNER JOIN products p ON p.id = l.product_id';
+        $fromSql = $this->buildListFromSql();
+        $whereSql = $this->buildListWhereSql($productId, $status, $usage, $query, $params);
         $baseParams = [];
-        $baseWhereSql = $this->buildListWhereSql($productId, '', '', $baseParams);
+        $baseWhereSql = $this->buildListWhereSql($productId, '', 'all', '', $baseParams);
 
         $totalRow = $this->db->selectOne(
             'SELECT COUNT(*) AS total' . $fromSql . $whereSql,
@@ -51,13 +51,7 @@ final class LicenseService
                 l.created_at,
                 p.name AS product_name,
                 COALESCE(binding_stats.active_binding_count, 0) AS active_binding_count
-             ' . $fromSql . '
-             LEFT JOIN (
-                SELECT license_id, COUNT(*) AS active_binding_count
-                FROM license_bindings
-                WHERE status = \'active\'
-                GROUP BY license_id
-             ) binding_stats ON binding_stats.license_id = l.id' . $whereSql . '
+             ' . $fromSql . $whereSql . '
              ORDER BY l.id DESC
              LIMIT ' . $pageSize . ' OFFSET ' . $offset,
             $params
@@ -77,9 +71,41 @@ final class LicenseService
             ],
             'filters' => [
                 'status' => $status === '' ? 'all' : $status,
+                'usage' => $usage,
                 'query' => $query,
             ],
         ];
+    }
+
+    public function exportRows(?int $productId = null, array $filters = []): \Generator
+    {
+        $status = strtolower(trim((string) ($filters['status'] ?? '')));
+        $usage = $this->normalizeUsageFilter((string) ($filters['usage'] ?? ''));
+        $query = trim((string) ($filters['query'] ?? ''));
+
+        $params = [];
+        $whereSql = $this->buildListWhereSql($productId, $status, $usage, $query, $params);
+
+        $statement = $this->db->pdo()->prepare(
+            'SELECT
+                l.id,
+                l.product_id,
+                l.license_key,
+                l.license_type,
+                l.status,
+                l.expires_at,
+                l.max_bindings,
+                l.created_at,
+                p.name AS product_name,
+                COALESCE(binding_stats.active_binding_count, 0) AS active_binding_count
+             ' . $this->buildListFromSql() . $whereSql . '
+             ORDER BY l.id DESC'
+        );
+        $statement->execute($params);
+
+        while (($row = $statement->fetch()) !== false) {
+            yield $this->mapLicenseRow($row);
+        }
     }
 
     public function getDetail(int $licenseId): ?array
@@ -580,7 +606,19 @@ final class LicenseService
         ];
     }
 
-    private function buildListWhereSql(?int $productId, string $status, string $query, array &$params): string
+    private function buildListFromSql(): string
+    {
+        return ' FROM licenses l
+                 INNER JOIN products p ON p.id = l.product_id
+                 LEFT JOIN (
+                    SELECT license_id, COUNT(*) AS active_binding_count
+                    FROM license_bindings
+                    WHERE status = \'active\'
+                    GROUP BY license_id
+                 ) binding_stats ON binding_stats.license_id = l.id';
+    }
+
+    private function buildListWhereSql(?int $productId, string $status, string $usage, string $query, array &$params): string
     {
         $clauses = [];
 
@@ -594,12 +632,25 @@ final class LicenseService
             $params['status'] = $status;
         }
 
+        if ($usage === 'used') {
+            $clauses[] = 'COALESCE(binding_stats.active_binding_count, 0) > 0';
+        } elseif ($usage === 'unused') {
+            $clauses[] = 'COALESCE(binding_stats.active_binding_count, 0) = 0';
+        }
+
         if ($query !== '') {
             $clauses[] = '(l.license_key LIKE :query OR p.name LIKE :query)';
             $params['query'] = '%' . $query . '%';
         }
 
         return $clauses === [] ? '' : ' WHERE ' . implode(' AND ', $clauses);
+    }
+
+    private function normalizeUsageFilter(string $usage): string
+    {
+        $usage = strtolower(trim($usage));
+
+        return in_array($usage, ['used', 'unused'], true) ? $usage : 'all';
     }
 
     private function mapLicenseRow(array $row): array

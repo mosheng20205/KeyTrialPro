@@ -24,5 +24,6 @@ api_ok($app['licenseService']->listPage($productId, [
     'page' => (int) $request->input('page', 1),
     'pageSize' => (int) $request->input('pageSize', 20),
     'status' => (string) $request->input('status', 'all'),
+    'usage' => (string) $request->input('usage', 'all'),
     'query' => (string) $request->input('query', ''),
 ]));

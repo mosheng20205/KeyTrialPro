@@ -21,6 +21,20 @@ function handleUnauthorized(): void {
   window.location.href = "/admin/login";
 }
 
+function parseDownloadFileName(contentDisposition: string | null, fallback: string): string {
+  if (!contentDisposition) {
+    return fallback;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const plainMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+  return plainMatch?.[1] ?? fallback;
+}
+
 async function getJson<T>(url: string, fallback: T): Promise<T> {
   try {
     const response = await fetch(url, { headers: authHeaders() });
@@ -150,7 +164,7 @@ export const api = {
     const suffix = productCode ? `?productId=${productCode}` : "";
     return getJson(`/api/admin/approvals/list.php${suffix}`, mockApprovals);
   },
-  licenses(params: { productCode?: string; page?: number; pageSize?: number; status?: string; query?: string }): Promise<LicenseListResponse> {
+  licenses(params: { productCode?: string; page?: number; pageSize?: number; status?: string; usage?: string; query?: string }): Promise<LicenseListResponse> {
     const search = new URLSearchParams();
     if (params.productCode) {
       search.set("productId", params.productCode);
@@ -163,6 +177,9 @@ export const api = {
     }
     if (params.status && params.status !== "all") {
       search.set("status", params.status);
+    }
+    if (params.usage && params.usage !== "all") {
+      search.set("usage", params.usage);
     }
     if (params.query) {
       search.set("query", params.query);
@@ -179,9 +196,53 @@ export const api = {
       },
       filters: {
         status: params.status ?? "all",
+        usage: params.usage ?? "all",
         query: params.query ?? "",
       },
     });
+  },
+  async exportLicenses(params: { productCode?: string; status?: string; usage?: string; query?: string }): Promise<void> {
+    const search = new URLSearchParams();
+    if (params.productCode) {
+      search.set("productId", params.productCode);
+    }
+    if (params.status && params.status !== "all") {
+      search.set("status", params.status);
+    }
+    if (params.usage && params.usage !== "all") {
+      search.set("usage", params.usage);
+    }
+    if (params.query) {
+      search.set("query", params.query);
+    }
+
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    const response = await fetch(`/api/admin/licenses/export.php${suffix}`, {
+      headers: authHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        handleUnauthorized();
+      }
+
+      const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      throw new Error(payload?.error?.message ?? `Request failed with status ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const fileName = parseDownloadFileName(
+      response.headers.get("Content-Disposition"),
+      `licenses-${params.productCode ?? "all-products"}.csv`,
+    );
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
   },
   licenseDetail(licenseId: number): Promise<LicenseDetail> {
     return requestJson(`/api/admin/licenses/detail.php?licenseId=${licenseId}`);

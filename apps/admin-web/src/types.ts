@@ -162,6 +162,7 @@ export type LicenseListResponse = {
   pagination: PaginationMeta;
   filters: {
     status: string;
+    usage: string;
     query: string;
   };
 };

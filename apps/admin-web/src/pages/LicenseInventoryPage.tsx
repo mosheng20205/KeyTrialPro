@@ -79,13 +79,15 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
   const [inventory, setInventory] = useState<LicenseListResponse>({
     items: [],
     pagination: { page: 1, pageSize: 20, total: 0, totalAll: 0, totalPages: 1 },
-    filters: { status: "all", query: "" },
+    filters: { status: "all", usage: "all", query: "" },
   });
   const [queryInput, setQueryInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [usageFilter, setUsageFilter] = useState("all");
   const [pageSize, setPageSize] = useState(20);
   const [pageJumpInput, setPageJumpInput] = useState("1");
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [selectedLicenseId, setSelectedLicenseId] = useState<number | null>(null);
   const [detail, setDetail] = useState<LicenseDetail | null>(null);
@@ -99,15 +101,21 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
 
   const totalAll = inventory.pagination.totalAll ?? inventory.pagination.total;
   const hasActiveFilters = useMemo(
-    () => statusFilter !== "all" || queryInput.trim() !== "",
-    [queryInput, statusFilter],
+    () => statusFilter !== "all" || usageFilter !== "all" || queryInput.trim() !== "",
+    [queryInput, statusFilter, usageFilter],
   );
   const pageItems = useMemo(
     () => buildPageItems(inventory.pagination.page, inventory.pagination.totalPages),
     [inventory.pagination.page, inventory.pagination.totalPages],
   );
 
-  const loadInventory = async (page: number, nextPageSize: number, nextStatus: string, nextQuery: string) => {
+  const loadInventory = async (
+    page: number,
+    nextPageSize: number,
+    nextStatus: string,
+    nextUsage: string,
+    nextQuery: string,
+  ) => {
     if (!productCode) {
       return;
     }
@@ -121,6 +129,7 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
         page,
         pageSize: nextPageSize,
         status: nextStatus,
+        usage: nextUsage,
         query: nextQuery,
       });
       setInventory(response);
@@ -142,9 +151,10 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
     setDetailError("");
     setQueryInput("");
     setStatusFilter("all");
+    setUsageFilter("all");
     setPageSize(20);
     setPageJumpInput("1");
-    void loadInventory(1, 20, "all", "");
+    void loadInventory(1, 20, "all", "all", "");
   }, [productCode]);
 
   useEffect(() => {
@@ -183,15 +193,16 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
 
   const handleFilterSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    await loadInventory(1, pageSize, statusFilter, queryInput.trim());
+    await loadInventory(1, pageSize, statusFilter, usageFilter, queryInput.trim());
   };
 
   const handleReset = async () => {
     setQueryInput("");
     setStatusFilter("all");
+    setUsageFilter("all");
     setPageSize(20);
     setPageJumpInput("1");
-    await loadInventory(1, 20, "all", "");
+    await loadInventory(1, 20, "all", "all", "");
   };
 
   const handleStatusToggle = async (licenseId: number, currentStatus: string) => {
@@ -206,7 +217,13 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
 
     try {
       const updated = await api.updateLicenseStatus(licenseId, nextStatus);
-      await loadInventory(inventory.pagination.page, inventory.pagination.pageSize, statusFilter, queryInput.trim());
+      await loadInventory(
+        inventory.pagination.page,
+        inventory.pagination.pageSize,
+        statusFilter,
+        usageFilter,
+        queryInput.trim(),
+      );
 
       if (selectedLicenseId === licenseId) {
         setDetail(updated);
@@ -250,7 +267,28 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
     );
 
     setPageJumpInput(String(targetPage));
-    await loadInventory(targetPage, pageSize, statusFilter, queryInput.trim());
+    await loadInventory(targetPage, pageSize, statusFilter, usageFilter, queryInput.trim());
+  };
+
+  const handleExport = async () => {
+    if (!productCode) {
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      await api.exportLicenses({
+        productCode,
+        status: statusFilter,
+        usage: usageFilter,
+        query: queryInput.trim(),
+      });
+    } catch (err: unknown) {
+      window.alert(err instanceof Error ? err.message : "导出卡密失败。");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -281,7 +319,7 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
             onChange={(event) => {
               const nextStatus = event.target.value;
               setStatusFilter(nextStatus);
-              void loadInventory(1, pageSize, nextStatus, queryInput.trim());
+              void loadInventory(1, pageSize, nextStatus, usageFilter, queryInput.trim());
             }}
           >
             <option value="all">全部</option>
@@ -292,13 +330,29 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
         </label>
 
         <label>
+          使用情况
+          <select
+            value={usageFilter}
+            onChange={(event) => {
+              const nextUsage = event.target.value;
+              setUsageFilter(nextUsage);
+              void loadInventory(1, pageSize, statusFilter, nextUsage, queryInput.trim());
+            }}
+          >
+            <option value="all">全部</option>
+            <option value="used">已使用</option>
+            <option value="unused">未使用</option>
+          </select>
+        </label>
+
+        <label>
           每页条数
           <select
             value={pageSize}
             onChange={(event) => {
               const nextValue = Number(event.target.value);
               setPageSize(nextValue);
-              void loadInventory(1, nextValue, statusFilter, queryInput.trim());
+              void loadInventory(1, nextValue, statusFilter, usageFilter, queryInput.trim());
             }}
           >
             <option value={20}>20</option>
@@ -310,6 +364,14 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
         <div className="license-toolbar-actions">
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? "筛选中..." : "筛选"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={loading || exporting || inventory.pagination.total === 0}
+            onClick={() => void handleExport()}
+          >
+            {exporting ? "导出中..." : "导出筛选结果"}
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => void handleReset()}>
             重置
@@ -374,7 +436,9 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
             type="button"
             className="btn btn-secondary"
             disabled={loading || inventory.pagination.page <= 1}
-            onClick={() => void loadInventory(inventory.pagination.page - 1, pageSize, statusFilter, queryInput.trim())}
+            onClick={() =>
+              void loadInventory(inventory.pagination.page - 1, pageSize, statusFilter, usageFilter, queryInput.trim())
+            }
           >
             上一页
           </button>
@@ -387,7 +451,7 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
                   className={item === inventory.pagination.page ? "page-number-button page-number-button-active" : "page-number-button"}
                   aria-current={item === inventory.pagination.page ? "page" : undefined}
                   disabled={loading}
-                  onClick={() => void loadInventory(item, pageSize, statusFilter, queryInput.trim())}
+                  onClick={() => void loadInventory(item, pageSize, statusFilter, usageFilter, queryInput.trim())}
                 >
                   {item}
                 </button>
@@ -405,7 +469,9 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
             type="button"
             className="btn btn-secondary"
             disabled={loading || inventory.pagination.page >= inventory.pagination.totalPages}
-            onClick={() => void loadInventory(inventory.pagination.page + 1, pageSize, statusFilter, queryInput.trim())}
+            onClick={() =>
+              void loadInventory(inventory.pagination.page + 1, pageSize, statusFilter, usageFilter, queryInput.trim())
+            }
           >
             下一页
           </button>
