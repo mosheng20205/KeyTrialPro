@@ -23,11 +23,13 @@ export function AddLicensePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [createdCount, setCreatedCount] = useState(0);
   const [products, setProducts] = useState<Array<{ id: number; name: string; product_code: string }>>([]);
   const [policies, setPolicies] = useState<Record<number, ProductPolicy>>({});
   const [form, setForm] = useState({
     product_id: "",
     license_key: generateLicenseKey(),
+    quantity: 1,
     license_type: "standard",
     status: "active",
     max_bindings: 1,
@@ -92,18 +94,23 @@ export function AddLicensePage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    setSuccess(false);
+    setCreatedCount(0);
     setLoading(true);
 
     try {
-      await api.createLicense({
+      const quantity = Math.max(1, Math.min(500, form.quantity || 1));
+      const response = await api.createLicense({
         product_id: parseInt(form.product_id, 10),
-        license_key: form.license_key,
+        license_key: quantity === 1 ? form.license_key : undefined,
+        quantity,
         license_type: form.license_type,
         status: form.status,
         max_bindings: form.max_bindings,
         expires_at: form.expires_at || undefined,
       });
 
+      setCreatedCount(response.createdCount ?? quantity);
       setSuccess(true);
       setTimeout(() => navigate("/admin/?view=licenses"), 1500);
     } catch (err: unknown) {
@@ -112,6 +119,8 @@ export function AddLicensePage() {
       setLoading(false);
     }
   };
+
+  const isBatchMode = form.quantity > 1;
 
   return (
     <div className="page">
@@ -133,20 +142,39 @@ export function AddLicensePage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="license_key">卡密密钥 *</label>
+            <label htmlFor="quantity">生成数量</label>
+            <input
+              id="quantity"
+              type="number"
+              min="1"
+              max="500"
+              value={form.quantity}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  quantity: Math.max(1, Math.min(500, parseInt(event.target.value, 10) || 1)),
+                }))
+              }
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="license_key">卡密密钥 {isBatchMode ? "" : "*"}</label>
             <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
               <input
                 id="license_key"
                 type="text"
-                value={form.license_key}
+                value={isBatchMode ? "批量生成时由服务端自动生成" : form.license_key}
                 onChange={(event) => setForm((prev) => ({ ...prev, license_key: event.target.value.toUpperCase() }))}
-                required
+                required={!isBatchMode}
+                disabled={isBatchMode}
                 style={{ flex: 1 }}
               />
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setForm((prev) => ({ ...prev, license_key: generateLicenseKey() }))}
+                disabled={isBatchMode}
                 style={{ whiteSpace: "nowrap" }}
               >
                 重新生成
@@ -193,7 +221,7 @@ export function AddLicensePage() {
           </div>
 
           {error ? <div className="alert alert-error">{error}</div> : null}
-          {success ? <div className="alert alert-success">卡密添加成功，即将返回许可证列表。</div> : null}
+          {success ? <div className="alert alert-success">已成功添加 {createdCount} 张卡密，即将返回许可证列表。</div> : null}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={loading}>

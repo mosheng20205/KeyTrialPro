@@ -278,7 +278,7 @@ export const api = {
   productIntegration(productCode: string): Promise<ProductIntegration> {
     return requestJson(`/api/admin/products/integration.php?productId=${encodeURIComponent(productCode)}`);
   },
-  createLicense(data: Record<string, unknown>): Promise<{ license: unknown }> {
+  createLicense(data: Record<string, unknown>): Promise<{ license: unknown; licenses?: unknown[]; createdCount?: number }> {
     return postJson("/api/admin/licenses/create.php", data, { license: {} });
   },
   accountProfile(): Promise<AdminProfile> {
