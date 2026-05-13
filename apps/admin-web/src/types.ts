@@ -134,6 +134,10 @@ export type LicenseRecord = {
   license_key: string;
   license_type?: string;
   status: string;
+  activation_mode?: "permanent" | "fixed" | "activation_duration";
+  activation_duration_value?: number | null;
+  activation_duration_unit?: "day" | "hour" | null;
+  activated_at?: string | null;
   expires_at: string | null;
   max_bindings: number;
   product_name: string;

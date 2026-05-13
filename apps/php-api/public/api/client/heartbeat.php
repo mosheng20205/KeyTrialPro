@@ -44,8 +44,12 @@ $authorized = false;
 $expiresAt = $licenseStatus['expiresAt'] ?? ($trialStatus['expires_at'] ?? null);
 
 if ($licenseStatus !== null) {
-    $status = 'active';
-    $authorized = true;
+    if (($licenseStatus['expired'] ?? false) === true) {
+        $status = 'license_expired';
+    } else {
+        $status = 'active';
+        $authorized = true;
+    }
 } elseif ($trialStatus !== null && $remainingTrialSeconds > 0) {
     $status = 'trial_active';
     $authorized = true;

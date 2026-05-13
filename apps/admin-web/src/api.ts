@@ -279,7 +279,11 @@ export const api = {
     return requestJson(`/api/admin/products/integration.php?productId=${encodeURIComponent(productCode)}`);
   },
   createLicense(data: Record<string, unknown>): Promise<{ license: unknown; licenses?: unknown[]; createdCount?: number }> {
-    return postJson("/api/admin/licenses/create.php", data, { license: {} });
+    return requestJson("/api/admin/licenses/create.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
   },
   accountProfile(): Promise<AdminProfile> {
     return requestJson("/api/admin/account/profile.php");

@@ -1487,6 +1487,11 @@ textarea {
   color: var(--muted);
 }
 
+.field-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .license-detail-card strong {
   font-size: 18px;
 }

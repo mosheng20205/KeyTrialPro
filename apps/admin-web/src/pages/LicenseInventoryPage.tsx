@@ -27,6 +27,30 @@ function formatDateTime(value: string | null | undefined): string {
   return value;
 }
 
+function formatLicenseExpiry(
+  license: Pick<LicenseDetail, "activation_mode" | "activation_duration_value" | "activation_duration_unit" | "activated_at" | "expires_at">,
+): string {
+  if (license.activation_mode === "activation_duration" && !license.activated_at && !license.expires_at) {
+    const unit = license.activation_duration_unit === "hour" ? "小时" : "天";
+    return `首次激活后 ${license.activation_duration_value ?? "-"} ${unit}`;
+  }
+
+  return formatDateTime(license.expires_at);
+}
+
+function translateActivationMode(mode: string | undefined): string {
+  switch (mode) {
+    case "permanent":
+      return "永久";
+    case "fixed":
+      return "固定到期";
+    case "activation_duration":
+      return "首次激活计时";
+    default:
+      return "固定到期";
+  }
+}
+
 function summarizeMetadata(metadata: Record<string, unknown> | null): string {
   if (!metadata) {
     return "-";
@@ -405,7 +429,7 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
               <div className="table-cell">
                 <span className={`status-chip status-chip-${license.status}`}>{translateStatus(license.status)}</span>
               </div>
-              <div className="table-cell table-cell-nowrap">{formatDateTime(license.expires_at)}</div>
+              <div className="table-cell table-cell-nowrap">{formatLicenseExpiry(license)}</div>
               <div className="table-cell table-cell-nowrap">
                 {license.active_binding_count ?? 0} / {license.max_bindings}
               </div>
@@ -529,8 +553,8 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
                 </div>
                 <div className="license-detail-card">
                   <span>到期时间</span>
-                  <strong>{formatDateTime(detail.expires_at)}</strong>
-                  <small>创建于 {formatDateTime(detail.created_at)}</small>
+                  <strong>{formatLicenseExpiry(detail)}</strong>
+                  <small>{translateActivationMode(detail.activation_mode)} · {detail.activated_at ? `激活于 ${detail.activated_at}` : "未激活"}</small>
                 </div>
                 <div className="license-detail-card">
                   <span>绑定情况</span>

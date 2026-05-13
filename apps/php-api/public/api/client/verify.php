@@ -41,24 +41,26 @@ $authorized = false;
 $expiresAt = $licenseStatus['expiresAt'] ?? null;
 
 if ($licenseStatus !== null) {
-    $status = 'active';
-    $authorized = true;
+    if (($licenseStatus['expired'] ?? false) === true) {
+        $status = 'license_expired';
+    } else {
+        $status = 'active';
+        $authorized = true;
+    }
 }
 
-if ($trialStatus !== null) {
+if ($licenseStatus === null && $trialStatus !== null) {
     $remainingTrialSeconds = (int) ($trialStatus['remainingSeconds'] ?? 0);
 
     if ($expiresAt === null) {
         $expiresAt = $trialStatus['expires_at'] ?? null;
     }
 
-    if ($licenseStatus === null) {
-        if ($remainingTrialSeconds > 0) {
-            $status = 'trial_active';
-            $authorized = true;
-        } else {
-            $status = 'trial_expired';
-        }
+    if ($remainingTrialSeconds > 0) {
+        $status = 'trial_active';
+        $authorized = true;
+    } else {
+        $status = 'trial_expired';
     }
 }
 

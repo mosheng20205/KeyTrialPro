@@ -1,0 +1,59 @@
+USE keytrialpro;
+
+DROP PROCEDURE IF EXISTS ktp_add_license_activation_column;
+
+DELIMITER //
+CREATE PROCEDURE ktp_add_license_activation_column(
+    IN column_name VARCHAR(64),
+    IN alter_sql TEXT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'licenses'
+          AND COLUMN_NAME = column_name
+    ) THEN
+        SET @ddl = alter_sql;
+        PREPARE statement FROM @ddl;
+        EXECUTE statement;
+        DEALLOCATE PREPARE statement;
+    END IF;
+END//
+DELIMITER ;
+
+CALL ktp_add_license_activation_column(
+    'activation_mode',
+    'ALTER TABLE licenses ADD COLUMN activation_mode VARCHAR(32) NOT NULL DEFAULT ''fixed'' AFTER max_bindings'
+);
+
+CALL ktp_add_license_activation_column(
+    'activation_duration_value',
+    'ALTER TABLE licenses ADD COLUMN activation_duration_value INT NULL AFTER activation_mode'
+);
+
+CALL ktp_add_license_activation_column(
+    'activation_duration_unit',
+    'ALTER TABLE licenses ADD COLUMN activation_duration_unit VARCHAR(16) NULL AFTER activation_duration_value'
+);
+
+CALL ktp_add_license_activation_column(
+    'activated_at',
+    'ALTER TABLE licenses ADD COLUMN activated_at DATETIME NULL AFTER activation_duration_unit'
+);
+
+DROP PROCEDURE IF EXISTS ktp_add_license_activation_column;
+
+UPDATE licenses
+SET activation_mode = CASE
+        WHEN expires_at IS NULL THEN 'permanent'
+        ELSE 'fixed'
+    END,
+    activation_duration_value = NULL,
+    activation_duration_unit = NULL,
+    activated_at = NULL
+WHERE activation_mode = 'fixed'
+  AND activation_duration_value IS NULL
+  AND activation_duration_unit IS NULL
+  AND activated_at IS NULL;

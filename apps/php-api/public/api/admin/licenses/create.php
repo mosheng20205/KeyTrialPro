@@ -55,6 +55,9 @@ try {
         'license_type' => (string) $request->input('license_type', 'standard'),
         'status' => (string) $request->input('status', 'active'),
         'max_bindings' => (int) $request->input('max_bindings', 1),
+        'activation_mode' => (string) $request->input('activation_mode', ''),
+        'activation_duration_value' => $request->input('activation_duration_value'),
+        'activation_duration_unit' => $request->input('activation_duration_unit'),
         'expires_at' => $request->input('expires_at') ?: null,
     ];
 

@@ -33,6 +33,9 @@ export function AddLicensePage() {
     license_type: "standard",
     status: "active",
     max_bindings: 1,
+    activation_mode: "permanent",
+    activation_duration_value: 1,
+    activation_duration_unit: "day",
     expires_at: "",
   });
 
@@ -107,7 +110,10 @@ export function AddLicensePage() {
         license_type: form.license_type,
         status: form.status,
         max_bindings: form.max_bindings,
-        expires_at: form.expires_at || undefined,
+        activation_mode: form.activation_mode,
+        activation_duration_value: form.activation_mode === "activation_duration" ? form.activation_duration_value : undefined,
+        activation_duration_unit: form.activation_mode === "activation_duration" ? form.activation_duration_unit : undefined,
+        expires_at: form.activation_mode === "fixed" ? form.expires_at || undefined : undefined,
       });
 
       setCreatedCount(response.createdCount ?? quantity);
@@ -203,14 +209,67 @@ export function AddLicensePage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="expires_at">到期时间（留空永久）</label>
-            <input
-              id="expires_at"
-              type="date"
-              value={form.expires_at}
-              onChange={(event) => setForm((prev) => ({ ...prev, expires_at: event.target.value }))}
-            />
+            <label htmlFor="activation_mode">有效期模式</label>
+            <select
+              id="activation_mode"
+              value={form.activation_mode}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  activation_mode: event.target.value,
+                  expires_at: event.target.value === "fixed" ? prev.expires_at : "",
+                }))
+              }
+            >
+              <option value="permanent">永久</option>
+              <option value="fixed">固定到期时间</option>
+              <option value="activation_duration">首次激活后计时</option>
+            </select>
           </div>
+
+          {form.activation_mode === "fixed" ? (
+            <div className="form-group">
+              <label htmlFor="expires_at">到期时间 *</label>
+              <input
+                id="expires_at"
+                type="date"
+                value={form.expires_at}
+                onChange={(event) => setForm((prev) => ({ ...prev, expires_at: event.target.value }))}
+                required
+              />
+            </div>
+          ) : null}
+
+          {form.activation_mode === "activation_duration" ? (
+            <div className="form-group">
+              <label htmlFor="activation_duration_value">首次激活后有效期</label>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <input
+                  id="activation_duration_value"
+                  type="number"
+                  min="1"
+                  value={form.activation_duration_value}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      activation_duration_value: Math.max(1, parseInt(event.target.value, 10) || 1),
+                    }))
+                  }
+                  style={{ flex: 1 }}
+                />
+                <select
+                  aria-label="有效期单位"
+                  value={form.activation_duration_unit}
+                  onChange={(event) => setForm((prev) => ({ ...prev, activation_duration_unit: event.target.value }))}
+                  style={{ width: "110px" }}
+                >
+                  <option value="day">天</option>
+                  <option value="hour">小时</option>
+                </select>
+              </div>
+              <small className="field-hint">卡密未使用时不计时，首次成功激活后开始计算。</small>
+            </div>
+          ) : null}
 
           <div className="form-group">
             <label htmlFor="status">状态</label>

@@ -52,8 +52,8 @@ export const mockApprovals: ApprovalTicket[] = [
 ];
 
 export const mockLicenses: LicenseRecord[] = [
-  { id: 1, product_id: 1, license_key: "DESKTOP-PRO-001", status: "active", expires_at: "2026-05-18 10:00:00", max_bindings: 1, product_name: "Desktop Pro" },
-  { id: 2, product_id: 2, license_key: "STUDIO-MAX-001", status: "active", expires_at: "2026-07-18 10:00:00", max_bindings: 2, product_name: "Studio Max" },
+  { id: 1, product_id: 1, license_key: "DESKTOP-PRO-001", status: "active", activation_mode: "fixed", activated_at: "2026-04-18 10:00:00", expires_at: "2026-05-18 10:00:00", max_bindings: 1, product_name: "Desktop Pro" },
+  { id: 2, product_id: 2, license_key: "STUDIO-MAX-001", status: "active", activation_mode: "activation_duration", activation_duration_value: 3, activation_duration_unit: "day", activated_at: null, expires_at: null, max_bindings: 2, product_name: "Studio Max" },
 ];
 
 export const mockAuditLogs: AuditLogRecord[] = [

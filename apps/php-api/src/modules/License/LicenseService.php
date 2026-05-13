@@ -46,6 +46,10 @@ final class LicenseService
                 l.license_key,
                 l.license_type,
                 l.status,
+                l.activation_mode,
+                l.activation_duration_value,
+                l.activation_duration_unit,
+                l.activated_at,
                 l.expires_at,
                 l.max_bindings,
                 l.created_at,
@@ -93,6 +97,10 @@ final class LicenseService
                 l.license_key,
                 l.license_type,
                 l.status,
+                l.activation_mode,
+                l.activation_duration_value,
+                l.activation_duration_unit,
+                l.activated_at,
                 l.expires_at,
                 l.max_bindings,
                 l.created_at,
@@ -117,6 +125,10 @@ final class LicenseService
                 l.license_key,
                 l.license_type,
                 l.status,
+                l.activation_mode,
+                l.activation_duration_value,
+                l.activation_duration_unit,
+                l.activated_at,
                 l.expires_at,
                 l.max_bindings,
                 l.created_at,
@@ -510,20 +522,25 @@ final class LicenseService
             return null;
         }
 
-        $this->db->execute(
-            'UPDATE license_bindings
-             SET last_verified_at = UTC_TIMESTAMP()
-             WHERE product_id = :productId AND machine_id = :machineId',
-            [
-                'productId' => $productId,
-                'machineId' => $machineId,
-            ]
-        );
+        $expired = $this->isLicenseExpired($license['expires_at'] ?? null);
+
+        if (!$expired) {
+            $this->db->execute(
+                'UPDATE license_bindings
+                 SET last_verified_at = UTC_TIMESTAMP()
+                 WHERE product_id = :productId AND machine_id = :machineId',
+                [
+                    'productId' => $productId,
+                    'machineId' => $machineId,
+                ]
+            );
+        }
 
         return [
             'licenseId' => (int) $license['id'],
             'licenseKey' => (string) $license['license_key'],
-            'status' => (string) $license['status'],
+            'status' => $expired ? 'license_expired' : (string) $license['status'],
+            'expired' => $expired,
             'expiresAt' => $license['expires_at'],
         ];
     }
@@ -537,16 +554,26 @@ final class LicenseService
             }
         }
 
+        $licenseTiming = $this->normalizeLicenseTiming($data);
+
         $this->db->execute(
-            'INSERT INTO licenses (product_id, license_key, license_type, status, max_bindings, expires_at, created_at)
-             VALUES (:productId, :licenseKey, :licenseType, :status, :maxBindings, :expiresAt, UTC_TIMESTAMP())',
+            'INSERT INTO licenses (
+                product_id, license_key, license_type, status, max_bindings,
+                activation_mode, activation_duration_value, activation_duration_unit, expires_at, created_at
+             ) VALUES (
+                :productId, :licenseKey, :licenseType, :status, :maxBindings,
+                :activationMode, :activationDurationValue, :activationDurationUnit, :expiresAt, UTC_TIMESTAMP()
+             )',
             [
                 'productId' => (int) $data['product_id'],
                 'licenseKey' => (string) $data['license_key'],
                 'licenseType' => (string) ($data['license_type'] ?? 'standard'),
                 'status' => (string) ($data['status'] ?? 'active'),
                 'maxBindings' => (int) ($data['max_bindings'] ?? 1),
-                'expiresAt' => $data['expires_at'] ?? null,
+                'activationMode' => $licenseTiming['activation_mode'],
+                'activationDurationValue' => $licenseTiming['activation_duration_value'],
+                'activationDurationUnit' => $licenseTiming['activation_duration_unit'],
+                'expiresAt' => $licenseTiming['expires_at'],
             ]
         );
 
@@ -558,7 +585,17 @@ final class LicenseService
     public function activateLicense(array $product, string $cardKey, string $machineHash): array
     {
         $license = $this->db->selectOne(
-            'SELECT id, product_id, license_key, status, expires_at, max_bindings
+            'SELECT
+                id,
+                product_id,
+                license_key,
+                status,
+                activation_mode,
+                activation_duration_value,
+                activation_duration_unit,
+                activated_at,
+                expires_at,
+                max_bindings
              FROM licenses
              WHERE product_id = :productId AND license_key = :licenseKey
              LIMIT 1',
@@ -574,6 +611,10 @@ final class LicenseService
 
         if ($license['status'] !== 'active') {
             throw new \RuntimeException('License is not active.');
+        }
+
+        if ($this->isLicenseExpired($license['expires_at'] ?? null)) {
+            throw new \RuntimeException('License has expired.');
         }
 
         $bindingCount = $this->db->selectOne(
@@ -598,6 +639,11 @@ final class LicenseService
 
         if ($existingBinding === null && (int) ($bindingCount['count'] ?? 0) >= (int) $license['max_bindings']) {
             throw new \RuntimeException('License has reached the maximum binding count.');
+        }
+
+        $license = $this->ensureLicenseActivationWindow($license);
+        if ($this->isLicenseExpired($license['expires_at'] ?? null)) {
+            throw new \RuntimeException('License has expired.');
         }
 
         $this->db->execute(
@@ -674,6 +720,132 @@ final class LicenseService
         return in_array($usage, ['used', 'unused'], true) ? $usage : 'all';
     }
 
+    private function normalizeLicenseTiming(array $data): array
+    {
+        $mode = strtolower(trim((string) ($data['activation_mode'] ?? '')));
+        if ($mode === '') {
+            $mode = empty($data['expires_at']) ? 'permanent' : 'fixed';
+        }
+
+        if (!in_array($mode, ['permanent', 'fixed', 'activation_duration'], true)) {
+            throw new \InvalidArgumentException('activation_mode must be permanent, fixed, or activation_duration.');
+        }
+
+        $expiresAt = $data['expires_at'] ?? null;
+        $durationValue = null;
+        $durationUnit = null;
+
+        if ($mode === 'permanent') {
+            $expiresAt = null;
+        } elseif ($mode === 'fixed') {
+            if (empty($expiresAt)) {
+                throw new \InvalidArgumentException('expires_at is required when activation_mode is fixed.');
+            }
+        } else {
+            $durationValue = (int) ($data['activation_duration_value'] ?? 0);
+            $durationUnit = strtolower(trim((string) ($data['activation_duration_unit'] ?? 'day')));
+
+            if ($durationValue <= 0) {
+                throw new \InvalidArgumentException('activation_duration_value must be greater than 0.');
+            }
+
+            if (!in_array($durationUnit, ['day', 'hour'], true)) {
+                throw new \InvalidArgumentException('activation_duration_unit must be day or hour.');
+            }
+
+            $expiresAt = null;
+        }
+
+        return [
+            'activation_mode' => $mode,
+            'activation_duration_value' => $durationValue,
+            'activation_duration_unit' => $durationUnit,
+            'expires_at' => $expiresAt,
+        ];
+    }
+
+    private function ensureLicenseActivationWindow(array $license): array
+    {
+        if (($license['activation_mode'] ?? 'fixed') !== 'activation_duration') {
+            return $license;
+        }
+
+        if (!empty($license['activated_at']) && !empty($license['expires_at'])) {
+            return $license;
+        }
+
+        $durationValue = (int) ($license['activation_duration_value'] ?? 0);
+        $durationUnit = (string) ($license['activation_duration_unit'] ?? '');
+
+        if ($durationValue <= 0 || !in_array($durationUnit, ['day', 'hour'], true)) {
+            throw new \RuntimeException('License activation duration is invalid.');
+        }
+
+        $activatedAt = !empty($license['activated_at']) ? (string) $license['activated_at'] : gmdate('Y-m-d H:i:s');
+        $baseTimestamp = $this->utcTimestamp($activatedAt);
+        if ($baseTimestamp === false) {
+            throw new \RuntimeException('License activation timestamp is invalid.');
+        }
+
+        $durationSeconds = $durationValue * ($durationUnit === 'hour' ? 3600 : 86400);
+        $expiresAt = gmdate('Y-m-d H:i:s', $baseTimestamp + $durationSeconds);
+
+        $this->db->execute(
+            'UPDATE licenses
+             SET activated_at = COALESCE(activated_at, :activatedAt),
+                 expires_at = COALESCE(expires_at, :expiresAt)
+             WHERE id = :licenseId',
+            [
+                'activatedAt' => $activatedAt,
+                'expiresAt' => $expiresAt,
+                'licenseId' => (int) $license['id'],
+            ]
+        );
+
+        $updated = $this->db->selectOne(
+            'SELECT
+                id,
+                product_id,
+                license_key,
+                status,
+                activation_mode,
+                activation_duration_value,
+                activation_duration_unit,
+                activated_at,
+                expires_at,
+                max_bindings
+             FROM licenses
+             WHERE id = :licenseId
+             LIMIT 1',
+            ['licenseId' => (int) $license['id']]
+        );
+
+        if ($updated === null) {
+            throw new \RuntimeException('License not found after activation window update.');
+        }
+
+        return $updated;
+    }
+
+    private function isLicenseExpired(mixed $expiresAt): bool
+    {
+        if ($expiresAt === null || $expiresAt === '') {
+            return false;
+        }
+
+        $expiresTimestamp = $this->utcTimestamp((string) $expiresAt);
+        return $expiresTimestamp !== false && $expiresTimestamp <= time();
+    }
+
+    private function utcTimestamp(string $value): int|false
+    {
+        try {
+            return (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))->getTimestamp();
+        } catch (\Exception) {
+            return false;
+        }
+    }
+
     private function mapLicenseRow(array $row): array
     {
         return [
@@ -682,6 +854,10 @@ final class LicenseService
             'license_key' => (string) $row['license_key'],
             'license_type' => (string) ($row['license_type'] ?? 'standard'),
             'status' => (string) $row['status'],
+            'activation_mode' => (string) ($row['activation_mode'] ?? 'fixed'),
+            'activation_duration_value' => $row['activation_duration_value'] === null ? null : (int) $row['activation_duration_value'],
+            'activation_duration_unit' => $row['activation_duration_unit'],
+            'activated_at' => $row['activated_at'] ?? null,
             'expires_at' => $row['expires_at'],
             'max_bindings' => (int) $row['max_bindings'],
             'product_name' => (string) $row['product_name'],
