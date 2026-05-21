@@ -122,6 +122,9 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
+  const [editingNotesId, setEditingNotesId] = useState<number | null>(null);
+  const [editingNotesValue, setEditingNotesValue] = useState("");
+  const [notesSavingId, setNotesSavingId] = useState<number | null>(null);
 
   const totalAll = inventory.pagination.totalAll ?? inventory.pagination.total;
   const hasActiveFilters = useMemo(
@@ -259,6 +262,45 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
     } finally {
       setStatusUpdatingId(null);
     }
+  };
+
+  const startEditingNotes = (licenseId: number, notes: string | null | undefined) => {
+    setEditingNotesId(licenseId);
+    setEditingNotesValue(notes ?? "");
+  };
+
+  const saveEditingNotes = async () => {
+    if (editingNotesId === null) {
+      return;
+    }
+
+    const licenseId = editingNotesId;
+    const nextNotes = editingNotesValue.trim();
+    setNotesSavingId(licenseId);
+
+    try {
+      const updated = await api.updateLicenseNotes(licenseId, nextNotes);
+      setInventory((prev) => ({
+        ...prev,
+        items: prev.items.map((item) => (item.id === licenseId ? { ...item, notes: updated.notes ?? null } : item)),
+      }));
+
+      if (selectedLicenseId === licenseId) {
+        setDetail(updated);
+      }
+
+      setEditingNotesId(null);
+      setEditingNotesValue("");
+    } catch (err: unknown) {
+      window.alert(err instanceof Error ? err.message : "更新备注失败。");
+    } finally {
+      setNotesSavingId(null);
+    }
+  };
+
+  const cancelEditingNotes = () => {
+    setEditingNotesId(null);
+    setEditingNotesValue("");
   };
 
   const handleLogPageChange = async (page: number) => {
@@ -421,6 +463,7 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
           <div className="table-head">状态</div>
           <div className="table-head">到期时间</div>
           <div className="table-head">已绑 / 上限</div>
+          <div className="table-head">备注</div>
           <div className="table-head">创建时间</div>
           <div className="table-head">操作</div>
           {inventory.items.map((license) => (
@@ -432,6 +475,32 @@ export function LicenseInventoryPage({ productCode }: LicenseInventoryPageProps)
               <div className="table-cell table-cell-nowrap">{formatLicenseExpiry(license)}</div>
               <div className="table-cell table-cell-nowrap">
                 {license.active_binding_count ?? 0} / {license.max_bindings}
+              </div>
+              <div className="table-cell table-cell-notes" onDoubleClick={() => startEditingNotes(license.id, license.notes)}>
+                {editingNotesId === license.id ? (
+                  <input
+                    className="table-note-input"
+                    autoFocus
+                    disabled={notesSavingId === license.id}
+                    value={editingNotesValue}
+                    onChange={(event) => setEditingNotesValue(event.target.value)}
+                    onBlur={() => void saveEditingNotes()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void saveEditingNotes();
+                      }
+
+                      if (event.key === "Escape") {
+                        cancelEditingNotes();
+                      }
+                    }}
+                  />
+                ) : (
+                  <span className={license.notes ? "table-note-text" : "table-note-empty"}>
+                    {license.notes || "双击添加备注"}
+                  </span>
+                )}
               </div>
               <div className="table-cell table-cell-nowrap">{formatDateTime(license.created_at)}</div>
               <div className="table-cell">

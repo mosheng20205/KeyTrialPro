@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS licenses (
     activated_at DATETIME NULL,
     expires_at DATETIME NULL,
     metadata_json JSON NULL,
+    notes TEXT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_license_product FOREIGN KEY (product_id) REFERENCES products(id)

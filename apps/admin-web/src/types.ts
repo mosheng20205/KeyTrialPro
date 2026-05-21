@@ -133,6 +133,7 @@ export type LicenseRecord = {
   product_id: number;
   license_key: string;
   license_type?: string;
+  notes?: string | null;
   status: string;
   activation_mode?: "permanent" | "fixed" | "activation_duration";
   activation_duration_value?: number | null;

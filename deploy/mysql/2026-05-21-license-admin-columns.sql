@@ -1,9 +1,9 @@
 USE keytrialpro;
 
-DROP PROCEDURE IF EXISTS ktp_add_license_activation_column;
+DROP PROCEDURE IF EXISTS ktp_add_license_admin_column;
 
 DELIMITER //
-CREATE PROCEDURE ktp_add_license_activation_column(
+CREATE PROCEDURE ktp_add_license_admin_column(
     IN p_column_name VARCHAR(64),
     IN p_alter_sql TEXT
 )
@@ -23,27 +23,32 @@ BEGIN
 END//
 DELIMITER ;
 
-CALL ktp_add_license_activation_column(
+CALL ktp_add_license_admin_column(
     'activation_mode',
     'ALTER TABLE licenses ADD COLUMN activation_mode VARCHAR(32) NOT NULL DEFAULT ''fixed'' AFTER max_bindings'
 );
 
-CALL ktp_add_license_activation_column(
+CALL ktp_add_license_admin_column(
     'activation_duration_value',
     'ALTER TABLE licenses ADD COLUMN activation_duration_value INT NULL AFTER activation_mode'
 );
 
-CALL ktp_add_license_activation_column(
+CALL ktp_add_license_admin_column(
     'activation_duration_unit',
     'ALTER TABLE licenses ADD COLUMN activation_duration_unit VARCHAR(16) NULL AFTER activation_duration_value'
 );
 
-CALL ktp_add_license_activation_column(
+CALL ktp_add_license_admin_column(
     'activated_at',
     'ALTER TABLE licenses ADD COLUMN activated_at DATETIME NULL AFTER activation_duration_unit'
 );
 
-DROP PROCEDURE IF EXISTS ktp_add_license_activation_column;
+CALL ktp_add_license_admin_column(
+    'notes',
+    'ALTER TABLE licenses ADD COLUMN notes TEXT NULL AFTER metadata_json'
+);
+
+DROP PROCEDURE IF EXISTS ktp_add_license_admin_column;
 
 UPDATE licenses
 SET activation_mode = CASE

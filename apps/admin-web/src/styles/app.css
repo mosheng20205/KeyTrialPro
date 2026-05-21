@@ -512,6 +512,31 @@ textarea {
   line-height: 1.6;
 }
 
+.table-cell-notes {
+  min-height: 52px;
+}
+
+.table-note-text,
+.table-note-empty {
+  display: block;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.table-note-empty {
+  color: var(--muted);
+}
+
+.table-note-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  color: var(--surface-ink);
+  padding: 8px 10px;
+  font: inherit;
+}
+
 .audit-grid {
   grid-template-columns:
     minmax(132px, 0.95fr)
@@ -527,10 +552,11 @@ textarea {
 
 .license-grid-ops {
   grid-template-columns:
-    minmax(220px, 2.2fr)
+    minmax(200px, 2fr)
     minmax(110px, 0.9fr)
     minmax(150px, 1.15fr)
     minmax(110px, 0.9fr)
+    minmax(180px, 1.4fr)
     minmax(150px, 1.1fr)
     minmax(170px, 1.2fr);
 }

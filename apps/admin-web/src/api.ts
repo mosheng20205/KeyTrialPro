@@ -257,6 +257,13 @@ export const api = {
       body: JSON.stringify({ licenseId, status }),
     });
   },
+  updateLicenseNotes(licenseId: number, notes: string): Promise<LicenseDetail> {
+    return requestJson("/api/admin/licenses/notes.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ licenseId, notes }),
+    });
+  },
   auditLogs(productCode?: string): Promise<AuditLogRecord[]> {
     const suffix = productCode ? `?productId=${productCode}` : "";
     return getJson(`/api/admin/audit/list.php${suffix}`, mockAuditLogs);

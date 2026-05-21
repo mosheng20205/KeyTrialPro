@@ -53,6 +53,7 @@ try {
     $baseData = [
         'product_id' => $productId,
         'license_type' => (string) $request->input('license_type', 'standard'),
+        'notes' => $request->input('notes'),
         'status' => (string) $request->input('status', 'active'),
         'max_bindings' => (int) $request->input('max_bindings', 1),
         'activation_mode' => (string) $request->input('activation_mode', ''),
@@ -105,6 +106,7 @@ try {
         [
             'createdCount' => count($licenses),
             'licenseKeys' => array_slice(array_column($licenses, 'license_key'), 0, 20),
+            'notes' => $baseData['notes'] === null ? null : (string) $baseData['notes'],
             'status' => $baseData['status'],
         ]
     );

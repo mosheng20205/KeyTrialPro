@@ -37,6 +37,7 @@ export function AddLicensePage() {
     activation_duration_value: 1,
     activation_duration_unit: "day",
     expires_at: "",
+    notes: "",
   });
 
   useEffect(() => {
@@ -114,6 +115,7 @@ export function AddLicensePage() {
         activation_duration_value: form.activation_mode === "activation_duration" ? form.activation_duration_value : undefined,
         activation_duration_unit: form.activation_mode === "activation_duration" ? form.activation_duration_unit : undefined,
         expires_at: form.activation_mode === "fixed" ? form.expires_at || undefined : undefined,
+        notes: form.notes.trim() || undefined,
       });
 
       setCreatedCount(response.createdCount ?? quantity);
@@ -277,6 +279,18 @@ export function AddLicensePage() {
               <option value="active">激活</option>
               <option value="inactive">停用</option>
             </select>
+          </div>
+
+          <div className="form-group form-grid-wide">
+            <label htmlFor="notes">备注</label>
+            <textarea
+              id="notes"
+              rows={3}
+              maxLength={2000}
+              value={form.notes}
+              onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
+              placeholder="可填写本次生成卡密的备注；批量生成时会应用到每一张卡密。"
+            />
           </div>
 
           {error ? <div className="alert alert-error">{error}</div> : null}

@@ -45,6 +45,7 @@ final class LicenseService
                 l.product_id,
                 l.license_key,
                 l.license_type,
+                l.notes,
                 l.status,
                 l.activation_mode,
                 l.activation_duration_value,
@@ -96,6 +97,7 @@ final class LicenseService
                 l.product_id,
                 l.license_key,
                 l.license_type,
+                l.notes,
                 l.status,
                 l.activation_mode,
                 l.activation_duration_value,
@@ -124,6 +126,7 @@ final class LicenseService
                 l.product_id,
                 l.license_key,
                 l.license_type,
+                l.notes,
                 l.status,
                 l.activation_mode,
                 l.activation_duration_value,
@@ -200,6 +203,36 @@ final class LicenseService
              WHERE id = :licenseId',
             [
                 'status' => $status,
+                'licenseId' => $licenseId,
+            ]
+        );
+
+        $updated = $this->getDetail($licenseId);
+        if ($updated === null) {
+            throw new \RuntimeException('License not found after update.');
+        }
+
+        return $updated;
+    }
+
+    public function updateNotes(int $licenseId, string $notes): array
+    {
+        $notes = trim($notes);
+        if ($this->notesLength($notes) > 2000) {
+            throw new \InvalidArgumentException('License notes must be 2000 characters or fewer.');
+        }
+
+        $license = $this->getDetail($licenseId);
+        if ($license === null) {
+            throw new \RuntimeException('License not found.');
+        }
+
+        $this->db->execute(
+            'UPDATE licenses
+             SET notes = :notes
+             WHERE id = :licenseId',
+            [
+                'notes' => $notes === '' ? null : $notes,
                 'licenseId' => $licenseId,
             ]
         );
@@ -558,16 +591,17 @@ final class LicenseService
 
         $this->db->execute(
             'INSERT INTO licenses (
-                product_id, license_key, license_type, status, max_bindings,
+                product_id, license_key, license_type, notes, status, max_bindings,
                 activation_mode, activation_duration_value, activation_duration_unit, expires_at, created_at
              ) VALUES (
-                :productId, :licenseKey, :licenseType, :status, :maxBindings,
+                :productId, :licenseKey, :licenseType, :notes, :status, :maxBindings,
                 :activationMode, :activationDurationValue, :activationDurationUnit, :expiresAt, UTC_TIMESTAMP()
              )',
             [
                 'productId' => (int) $data['product_id'],
                 'licenseKey' => (string) $data['license_key'],
                 'licenseType' => (string) ($data['license_type'] ?? 'standard'),
+                'notes' => $this->normalizeNotes($data['notes'] ?? null),
                 'status' => (string) ($data['status'] ?? 'active'),
                 'maxBindings' => (int) ($data['max_bindings'] ?? 1),
                 'activationMode' => $licenseTiming['activation_mode'],
@@ -589,6 +623,7 @@ final class LicenseService
                 id,
                 product_id,
                 license_key,
+                notes,
                 status,
                 activation_mode,
                 activation_duration_value,
@@ -706,7 +741,7 @@ final class LicenseService
         }
 
         if ($query !== '') {
-            $clauses[] = '(l.license_key LIKE :query OR p.name LIKE :query)';
+            $clauses[] = '(l.license_key LIKE :query OR p.name LIKE :query OR l.notes LIKE :query)';
             $params['query'] = '%' . $query . '%';
         }
 
@@ -764,6 +799,29 @@ final class LicenseService
         ];
     }
 
+    private function normalizeNotes(mixed $notes): ?string
+    {
+        if ($notes === null) {
+            return null;
+        }
+
+        $normalized = trim((string) $notes);
+        if ($normalized === '') {
+            return null;
+        }
+
+        if ($this->notesLength($normalized) > 2000) {
+            throw new \InvalidArgumentException('License notes must be 2000 characters or fewer.');
+        }
+
+        return $normalized;
+    }
+
+    private function notesLength(string $notes): int
+    {
+        return function_exists('mb_strlen') ? mb_strlen($notes) : strlen($notes);
+    }
+
     private function ensureLicenseActivationWindow(array $license): array
     {
         if (($license['activation_mode'] ?? 'fixed') !== 'activation_duration') {
@@ -807,6 +865,7 @@ final class LicenseService
                 id,
                 product_id,
                 license_key,
+                notes,
                 status,
                 activation_mode,
                 activation_duration_value,
@@ -853,6 +912,7 @@ final class LicenseService
             'product_id' => (int) $row['product_id'],
             'license_key' => (string) $row['license_key'],
             'license_type' => (string) ($row['license_type'] ?? 'standard'),
+            'notes' => $row['notes'] ?? null,
             'status' => (string) $row['status'],
             'activation_mode' => (string) ($row['activation_mode'] ?? 'fixed'),
             'activation_duration_value' => $row['activation_duration_value'] === null ? null : (int) $row['activation_duration_value'],

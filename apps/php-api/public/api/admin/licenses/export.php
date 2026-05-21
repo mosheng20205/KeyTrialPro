@@ -78,7 +78,7 @@ if ($output === false) {
 }
 
 fwrite($output, "\xEF\xBB\xBF");
-fputcsv($output, ['卡密', '状态', '使用情况', '已绑数量', '绑定上限', '有效期模式', '到期时间', '首次激活时间', '创建时间']);
+fputcsv($output, ['卡密', '状态', '使用情况', '已绑数量', '绑定上限', '备注', '有效期模式', '到期时间', '首次激活时间', '创建时间']);
 
 foreach ($rows as $row) {
     fputcsv($output, [
@@ -87,6 +87,7 @@ foreach ($rows as $row) {
         license_export_usage_label((int) ($row['active_binding_count'] ?? 0)),
         (int) ($row['active_binding_count'] ?? 0),
         (int) ($row['max_bindings'] ?? 0),
+        (string) ($row['notes'] ?? ''),
         license_export_activation_mode_label($row['activation_mode'] ?? null),
         license_export_expiry_label($row),
         $row['activated_at'] ?? '',
