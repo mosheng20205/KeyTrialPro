@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"T:/github/KeyTrialPro/native/win32-core-dll/build-x64/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

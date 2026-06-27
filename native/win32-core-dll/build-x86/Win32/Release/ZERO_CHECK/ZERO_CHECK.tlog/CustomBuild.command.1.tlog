@@ -1,0 +1,10 @@
+^T:\GITHUB\KEYTRIALPRO\NATIVE\WIN32-CORE-DLL\BUILD-X86\CMAKEFILES\CC08F490B7C730E31B687516098BEE18\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -ST:/github/KeyTrialPro/native/win32-core-dll -BT:/github/KeyTrialPro/native/win32-core-dll/build-x86 --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file T:/github/KeyTrialPro/native/win32-core-dll/build-x86/KeyTrialProNativeSdk.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

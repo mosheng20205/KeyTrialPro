@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="T:\github\KeyTrialPro\native\win32-core-dll\build-x86\CMakeFiles\cc08f490b7c730e31b687516098bee18\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{67338AC6-987B-308E-B2F8-B590E37CEB47}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

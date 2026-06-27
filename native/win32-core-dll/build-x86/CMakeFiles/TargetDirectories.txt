@@ -1,0 +1,3 @@
+T:/github/KeyTrialPro/native/win32-core-dll/build-x86/CMakeFiles/keytrialpro_sdk.dir
+T:/github/KeyTrialPro/native/win32-core-dll/build-x86/CMakeFiles/ALL_BUILD.dir
+T:/github/KeyTrialPro/native/win32-core-dll/build-x86/CMakeFiles/ZERO_CHECK.dir
