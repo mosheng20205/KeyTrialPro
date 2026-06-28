@@ -26,6 +26,19 @@ if ($cardKey === '') {
 try {
     api_verify_client_signature($app, $request, $product, '');
 
+
+    $riskSignals = (array) $request->input('riskSignals', []);
+    $riskDecision = $app['riskService']->evaluateClientRiskSignals($riskSignals);
+    $app['riskService']->recordClientRiskSignals((int) $product['id'], $summary['machineHash'], $riskSignals, $riskDecision);
+    if (!$riskDecision['authorized']) {
+        api_ok([
+            'status' => 'risk_blocked',
+            'authorized' => false,
+            'riskLevel' => $riskDecision['riskLevel'],
+            'blockReason' => $riskDecision['blockReason'],
+        ]);
+    }
+
     $app['licenseService']->consumeChallenge($productCode, $challengeId, $summary['machineHash'], $summary['signatureSubject'], $challengeSignature);
     $app['fingerprintService']->storeSnapshot((int) $product['id'], $summary['machineHash'], $machineFingerprint);
     $app['riskService']->captureEnvironmentSignals((int) $product['id'], $summary['machineHash'], $machineFingerprint);

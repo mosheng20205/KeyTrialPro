@@ -33,6 +33,22 @@ try {
     api_error($exception->getMessage(), 'VERIFY_FAILED', 409);
 }
 
+
+$riskSignals = (array) $request->input('riskSignals', []);
+$riskDecision = $app['riskService']->evaluateClientRiskSignals($riskSignals);
+$app['riskService']->recordClientRiskSignals((int) $product['id'], $summary['machineHash'], $riskSignals, $riskDecision);
+if (!$riskDecision['authorized']) {
+    api_ok([
+        'status' => 'risk_blocked',
+        'authorized' => false,
+        'online' => false,
+        'remainingTrialSeconds' => 0,
+        'expiresAt' => null,
+        'riskLevel' => $riskDecision['riskLevel'],
+        'blockReason' => $riskDecision['blockReason'],
+    ]);
+}
+
 $licenseStatus = $app['licenseService']->activeLicenseStatus((int) $product['id'], $summary['machineHash']);
 $trialStatus = $app['licenseService']->trialStatus($productCode, $summary['machineHash']);
 $remainingTrialSeconds = 0;

@@ -178,4 +178,96 @@ final class RiskService
             );
         }
     }
+
+    public function evaluateClientRiskSignals(?array $riskSignals): array
+    {
+        if ($riskSignals === null || $riskSignals === []) {
+            return [
+                'authorized' => true,
+                'riskLevel' => 'low',
+                'blockReason' => '',
+                'events' => [],
+            ];
+        }
+
+        $events = [];
+        $blockReasons = [];
+
+        if ((bool) ($riskSignals['debuggerAttached'] ?? false)) {
+            $events[] = ['debugger_detected', 'critical', 'Debugger attached flag reported by client.'];
+            $blockReasons[] = '检测到调试器';
+        }
+
+        if ((bool) ($riskSignals['apiHookDetected'] ?? false)) {
+            $events[] = ['api_hook_detected', 'critical', 'API hook flag reported by client.'];
+            $blockReasons[] = '检测到 Hook 或注入环境';
+        }
+
+        if (array_key_exists('codeIntegrityOk', $riskSignals) && !(bool) $riskSignals['codeIntegrityOk']) {
+            $events[] = ['code_integrity_failed', 'critical', 'Client code integrity check failed.'];
+            $blockReasons[] = '客户端完整性校验异常';
+        }
+
+        if ((bool) ($riskSignals['systemProxyEnabled'] ?? false)) {
+            $events[] = ['proxy_detected', 'critical', 'System proxy reported by client.'];
+            $proxyAddress = strtolower((string) ($riskSignals['systemProxyAddress'] ?? ''));
+            if ($proxyAddress === '' || preg_match('/127\.0\.0\.1|localhost|:8888|:8080|:9090|:8000|fiddler|charles|burp|mitm/', $proxyAddress) === 1) {
+                $blockReasons[] = '检测到系统代理';
+            }
+        }
+
+        $processes = $riskSignals['suspiciousProcesses'] ?? [];
+        if (is_array($processes) && $processes !== []) {
+            $events[] = ['suspicious_process_detected', 'critical', 'Suspicious process names reported by client.'];
+            $processText = strtolower(implode(' ', array_map('strval', $processes)));
+            if (preg_match('/fiddler|charles|mitmproxy|burp|httptoolkit|proxyman|x64dbg|x32dbg|dnspy|ollydbg|ida|frida|cheatengine|cheat engine/', $processText) === 1) {
+                $blockReasons[] = '检测到抓包、调试或逆向工具';
+            }
+        }
+
+        $certificates = $riskSignals['suspiciousRootCertificates'] ?? [];
+        if (is_array($certificates) && $certificates !== []) {
+            $events[] = ['suspicious_root_ca_detected', 'critical', 'Suspicious root certificates reported by client.'];
+            $blockReasons[] = '检测到可疑根证书';
+        }
+
+        $modules = $riskSignals['suspiciousModules'] ?? [];
+        if (is_array($modules) && $modules !== []) {
+            $events[] = ['suspicious_module_detected', 'high', 'Suspicious modules reported by client.'];
+            $blockReasons[] = '检测到可疑模块';
+        }
+
+        if ((bool) ($riskSignals['vmDetected'] ?? false)) {
+            $events[] = ['vm_detected', 'medium', 'Virtual machine flag reported by client.'];
+        }
+
+        $dedupedEvents = [];
+        foreach ($events as $event) {
+            $dedupedEvents[$event[0]] = $event;
+        }
+
+        $blockReasons = array_values(array_unique($blockReasons));
+        $authorized = $blockReasons === [];
+
+        return [
+            'authorized' => $authorized,
+            'riskLevel' => $authorized ? ($dedupedEvents === [] ? 'low' : 'medium') : 'critical',
+            'blockReason' => $authorized ? '' : implode('；', $blockReasons) . '，请关闭相关工具后重试。',
+            'events' => array_values($dedupedEvents),
+        ];
+    }
+
+    public function recordClientRiskSignals(int $productId, string $machineId, array $riskSignals, array $decision): void
+    {
+        foreach ($decision['events'] ?? [] as $event) {
+            $this->recordEvent(
+                $productId,
+                $machineId,
+                (string) $event[0],
+                (string) $event[1],
+                (string) $event[2],
+                ['riskSignals' => $riskSignals]
+            );
+        }
+    }
 }

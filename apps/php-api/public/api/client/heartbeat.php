@@ -36,6 +36,22 @@ if ($machineFingerprint !== []) {
     $app['riskService']->captureEnvironmentSignals((int) $product['id'], $machineId, $machineFingerprint);
 }
 
+
+$riskSignals = (array) $request->input('riskSignals', []);
+$riskDecision = $app['riskService']->evaluateClientRiskSignals($riskSignals);
+$app['riskService']->recordClientRiskSignals((int) $product['id'], $machineId, $riskSignals, $riskDecision);
+if (!$riskDecision['authorized']) {
+    api_ok([
+        'status' => 'risk_blocked',
+        'authorized' => false,
+        'onlineWindowSeconds' => $app['config']['presence']['windowSeconds'],
+        'remainingTrialSeconds' => 0,
+        'expiresAt' => null,
+        'riskLevel' => $riskDecision['riskLevel'],
+        'blockReason' => $riskDecision['blockReason'],
+    ]);
+}
+
 $licenseStatus = $app['licenseService']->activeLicenseStatus((int) $product['id'], $machineId);
 $trialStatus = $app['licenseService']->trialStatus($productCode, $machineId);
 $remainingTrialSeconds = (int) ($trialStatus['remainingSeconds'] ?? 0);
