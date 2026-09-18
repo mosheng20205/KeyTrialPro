@@ -215,14 +215,16 @@ public sealed class MainForm : Form
     private async Task FetchCertPinAsync()
     {
         var serverUrl = ParseServerUri();
-        var pin = await Task.Run(() => FetchLeafCertificatePin(serverUrl));
-        _certPinsTextBox.Text = pin;
+        var (spkiPin, leafPin) = await Task.Run(() => FetchCertificatePins(serverUrl));
+        _certPinsTextBox.Text = $"{spkiPin},{leafPin}";
         WriteOutput(new
         {
             success = true,
-            message = "已获取 cert pin。",
+            message = "已获取 cert pin（SPKI 在前，发布包优先使用 SPKI）。",
             serverUrl = serverUrl.ToString(),
-            certPin = pin,
+            spkiPin,
+            leafPin,
+            certPins = _certPinsTextBox.Text,
         });
     }
 
@@ -278,7 +280,7 @@ public sealed class MainForm : Form
         return uri;
     }
 
-    private static string FetchLeafCertificatePin(Uri serverUri)
+    private static (string SpkiPin, string LeafPin) FetchCertificatePins(Uri serverUri)
     {
         using var tcpClient = new TcpClient();
         tcpClient.Connect(serverUri.Host, serverUri.Port > 0 ? serverUri.Port : 443);
@@ -296,8 +298,10 @@ public sealed class MainForm : Form
         }
 
         var certificate = new X509Certificate2(sslStream.RemoteCertificate);
-        var digest = SHA256.HashData(certificate.RawData);
-        return Convert.ToHexString(digest).ToLowerInvariant();
+        var leafPin = Convert.ToHexString(SHA256.HashData(certificate.RawData)).ToLowerInvariant();
+        var spkiPin = Convert.ToHexString(
+            SHA256.HashData(certificate.PublicKey.ExportSubjectPublicKeyInfo())).ToLowerInvariant();
+        return (spkiPin, leafPin);
     }
 
     private void WriteJson(JsonElement payload)

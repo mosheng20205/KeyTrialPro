@@ -209,23 +209,28 @@ using var verification = client.Verify();
 
 ## 7. cert_pins 从哪里来
 
-`cert_pins` 本质上是服务端 HTTPS 叶子证书原始证书内容做 SHA-256 后的十六进制小写字符串。
+`cert_pins` 是一串逗号分隔的小写十六进制 SHA-256，每一项可以是下面两种之一：
+
+- 服务端 HTTPS 叶子证书原始内容（整张证书 DER）做 SHA-256，即证书指纹
+- 叶子证书的 `subjectPublicKeyInfo`（SPKI DER）做 SHA-256，即公钥指纹
 
 它要这样理解：
 
 - 它不是后台接口动态下发的业务字段
 - 它也不是“某个软件专属固定值”
 - 它和 `product_code` 没有直接绑定关系
-- 它实际绑定的是 `server_url` 当前返回的 HTTPS 叶子证书
+- 指纹形式绑定的是 `server_url` 当前返回的那一张叶子证书；SPKI 形式绑定的是这张证书背后的公钥
 
-换句话说，只要两个产品最终都请求同一个 `https://...` 服务地址，并且握手拿到的是同一张叶子证书，那么它们可以使用同一个 `cert_pins`。
+换句话说，只要两个产品最终都请求同一个 `https://...` 服务地址，并且握手拿到的是同一张叶子证书（或同一把公钥），那么它们可以使用同一个 `cert_pins`。
+
+**发布用的客户端强烈建议填 SPKI**：Let's Encrypt 这类证书每 60～90 天自动续期，续期后叶子指纹必然变化、已发布客户端会在 TLS 层直接失败；只要服务端不换私钥，SPKI 就一直有效。
 
 当前项目的原生 DLL 校验规则也是按这个逻辑实现的：
 
 - `cert_pins` 必须是小写十六进制
 - 支持多个 pin，用英文逗号分隔
 - DLL 会在 TLS 握手后读取服务器叶子证书
-- 然后对证书原始二进制做 SHA-256
+- 分别计算「整证书 SHA-256」和「SPKI SHA-256」
 - 只要结果命中你配置的任意一个 pin，就通过校验
 
 服务端配置里也预留了同一份 pinset 环境变量：
@@ -244,8 +249,8 @@ WinForms demo 已经内置了获取方法，逻辑在：
 1. 连接 `server_url`
 2. 建立 TLS 握手
 3. 读取远端叶子证书
-4. 对证书原始二进制做 SHA-256
-5. 输出 64 位十六进制字符串
+4. 分别对「证书原始二进制」和「证书公钥的 SPKI DER」做 SHA-256
+5. 输出两个 64 位十六进制字符串
 
 如果你不想自己写代码，最直接的办法就是运行 WinFormsTester，然后点击“获取 Cert Pin”按钮。
 
@@ -266,18 +271,20 @@ $ssl = [System.Net.Security.SslStream]::new(
 
 $ssl.AuthenticateAsClient($uri.Host)
 $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($ssl.RemoteCertificate)
-$pin = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($cert.RawData)).ToLowerInvariant()
+$leafPin = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($cert.RawData)).ToLowerInvariant()
+$spkiPin = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($cert.PublicKey.ExportSubjectPublicKeyInfo())).ToLowerInvariant()
 
 $ssl.Dispose()
 $tcp.Dispose()
-$pin
+"leaf = $leafPin"
+"spki = $spkiPin"
 ```
 
 注意事项：
 
 - 只能对 `HTTPS` 地址取 pin
-- 证书更新后 pin 也会变化
-- 如果服务端未来会切证书，建议同时配置多个 pin
+- 证书续期后叶子指纹一定变化，SPKI 在服务端不换私钥时保持不变；发布包建议填 SPKI，或 SPKI 与叶子指纹同时填上
+- 如果服务端会整体换密钥（换私钥、换 CA 且重新生成密钥），SPKI 也会变，此时需要重新下发 pin
 - 如果前面接了 CDN、反向代理或云 WAF，要取的是客户端实际访问域名当前返回的证书 pin
 
 示例格式：

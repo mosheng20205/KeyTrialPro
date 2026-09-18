@@ -469,6 +469,112 @@ std::vector<std::string> configured_pins() {
     return pins;
 }
 
+std::string certificate_leaf_pin(PCCERT_CONTEXT context) {
+    DWORD hash_length = 0;
+    CertGetCertificateContextProperty(context, CERT_SHA256_HASH_PROP_ID, nullptr, &hash_length);
+    std::vector<unsigned char> hash_bytes(hash_length);
+    if (!CertGetCertificateContextProperty(context, CERT_SHA256_HASH_PROP_ID, hash_bytes.data(), &hash_length)) {
+        return "";
+    }
+    return lower_ascii(hex_encode(hash_bytes));
+}
+
+bool read_der_tlv(const std::vector<unsigned char>& der, size_t position, size_t limit, size_t& header_length, size_t& content_length, unsigned char& tag) {
+    if (position + 2 > limit || limit > der.size()) {
+        return false;
+    }
+
+    size_t cursor = position;
+    tag = der[cursor++];
+    const unsigned char first_length_byte = der[cursor++];
+    if (first_length_byte < 0x80) {
+        content_length = first_length_byte;
+    } else {
+        const size_t length_octets = first_length_byte & 0x7F;
+        if (length_octets == 0 || length_octets > 2 || cursor + length_octets > limit) {
+            return false;
+        }
+        size_t value = 0;
+        for (size_t index = 0; index < length_octets; ++index) {
+            value = (value << 8) | der[cursor++];
+        }
+        content_length = value;
+    }
+
+    header_length = cursor - position;
+    return content_length <= limit - cursor;
+}
+
+bool skip_der_element(const std::vector<unsigned char>& der, size_t& position, size_t limit) {
+    size_t header_length = 0;
+    size_t content_length = 0;
+    unsigned char tag = 0;
+    if (!read_der_tlv(der, position, limit, header_length, content_length, tag)) {
+        return false;
+    }
+    position += header_length + content_length;
+    return true;
+}
+
+// SPKI pin = SHA-256 over the subjectPublicKeyInfo TLV of the certificate DER,
+// which matches the SPKI digest produced by OpenSSL and survives certificate renewal.
+std::string certificate_spki_pin(PCCERT_CONTEXT context) {
+    if (context == nullptr || context->pbCertEncoded == nullptr || context->cbCertEncoded <= 0) {
+        return "";
+    }
+
+    const std::vector<unsigned char> der(context->pbCertEncoded, context->pbCertEncoded + context->cbCertEncoded);
+    size_t header_length = 0;
+    size_t content_length = 0;
+    unsigned char tag = 0;
+
+    size_t position = 0;
+    size_t limit = der.size();
+    if (!read_der_tlv(der, position, limit, header_length, content_length, tag) || tag != 0x30) {
+        return "";
+    }
+    position += header_length;
+    limit = position + content_length;
+
+    if (!read_der_tlv(der, position, limit, header_length, content_length, tag) || tag != 0x30) {
+        return "";
+    }
+    position += header_length;
+    limit = position + content_length;
+
+    if (position >= limit) {
+        return "";
+    }
+    if (der[position] == 0xA0 && !skip_der_element(der, position, limit)) {
+        return "";
+    }
+
+    for (int skipped = 0; skipped < 5; ++skipped) {
+        if (!skip_der_element(der, position, limit)) {
+            return "";
+        }
+    }
+
+    size_t spki_header_length = 0;
+    size_t spki_content_length = 0;
+    if (!read_der_tlv(der, position, limit, spki_header_length, spki_content_length, tag) || tag != 0x30) {
+        return "";
+    }
+
+    const size_t spki_length = spki_header_length + spki_content_length;
+    return sha256_hex(std::string(reinterpret_cast<const char*>(der.data() + position), spki_length));
+}
+
+bool certificate_matches_configured_pins(PCCERT_CONTEXT context, const std::vector<std::string>& pins) {
+    const auto leaf_pin = certificate_leaf_pin(context);
+    if (!leaf_pin.empty() && std::find(pins.begin(), pins.end(), leaf_pin) != pins.end()) {
+        return true;
+    }
+
+    const auto spki_pin = certificate_spki_pin(context);
+    return !spki_pin.empty() && std::find(pins.begin(), pins.end(), spki_pin) != pins.end();
+}
+
 bool verify_tls_pin(HINTERNET request) {
     const auto pins = configured_pins();
     if (pins.empty()) {
@@ -483,19 +589,9 @@ bool verify_tls_pin(HINTERNET request) {
         return false;
     }
 
-    DWORD hash_length = 0;
-    CertGetCertificateContextProperty(context, CERT_SHA256_HASH_PROP_ID, nullptr, &hash_length);
-    std::vector<unsigned char> hash_bytes(hash_length);
-    const bool ok = CertGetCertificateContextProperty(context, CERT_SHA256_HASH_PROP_ID, hash_bytes.data(), &hash_length) == TRUE;
+    const bool match = certificate_matches_configured_pins(context, pins);
     CertFreeCertificateContext(context);
 
-    if (!ok) {
-        set_error("Unable to compute the server certificate SHA-256 pin.");
-        return false;
-    }
-
-    const auto pin = lower_ascii(hex_encode(hash_bytes));
-    const bool match = std::find(pins.begin(), pins.end(), pin) != pins.end();
     if (!match) {
         set_error("TLS pin mismatch for the server certificate.");
     }
@@ -520,20 +616,11 @@ bool verify_tls_pin_chain(PCCERT_CHAIN_CONTEXT chain_context) {
         return false;
     }
 
-    DWORD hash_length = 0;
-    CertGetCertificateContextProperty(certificate, CERT_SHA256_HASH_PROP_ID, nullptr, &hash_length);
-    std::vector<unsigned char> hash_bytes(hash_length);
-    if (!CertGetCertificateContextProperty(certificate, CERT_SHA256_HASH_PROP_ID, hash_bytes.data(), &hash_length)) {
-        set_error("Unable to compute the server certificate SHA-256 pin.");
+    if (!certificate_matches_configured_pins(certificate, pins)) {
+        set_error("TLS pin mismatch for the server certificate.");
         return false;
     }
-
-    const auto pin = lower_ascii(hex_encode(hash_bytes));
-    const bool match = std::find(pins.begin(), pins.end(), pin) != pins.end();
-    if (!match) {
-        set_error("TLS pin mismatch for the server certificate.");
-    }
-    return match;
+    return true;
 }
 
 FingerprintContext collect_fingerprint() {

@@ -229,7 +229,7 @@ All `*Json` functions write JSON to a provided buffer. Always allocate sufficien
   - `API_HMAC_KEY`: HMAC signature verification
   - `DATA_ENCRYPTION_KEY`: Fingerprint encryption (32 bytes)
   - `ADMIN_JWT_SECRET`: Admin session tokens
-  - `TLS_PINSET_SHA256`: Certificate pinning for client SDK
+  - `TLS_PINSET_SHA256`: comma-separated lowercase hex digests the client SDK accepts (leaf certificate fingerprint or its SPKI digest; prefer SPKI for shipped clients)
 
 ### Client-Server Security
 - All client API calls require HMAC signature

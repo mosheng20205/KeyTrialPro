@@ -60,13 +60,25 @@ The PHP API validates the signature before issuing or consuming a challenge.
 
 ## TLS Pinning
 
-Pass `cert_pins` to `Init` as a comma-separated SHA-256 pin list for the expected leaf certificate, for example:
+Pass `cert_pins` to `Init` as a comma-separated SHA-256 pin list for the expected server certificate, for example:
 
 ```text
 3f2c...aa91,7b10...44de
 ```
 
+Each entry is compared against both of these digests of the leaf certificate, and matching any one of them is enough:
+
+- the leaf certificate fingerprint (SHA-256 over the whole certificate DER)
+- the leaf `subjectPublicKeyInfo` digest (SHA-256 over the SPKI DER)
+
+Use the SPKI digest for shipped builds: it stays valid across certificate renewals as long as the server keeps the same key pair, while a leaf fingerprint breaks every client on renewal.
+
+```bash
+echo | openssl s_client -connect your-domain.com:443 -servername your-domain.com 2>/dev/null \
+  | openssl x509 -noout -pubkey | openssl pkey -pubin -outform DER | openssl dgst -sha256 -hex
+```
+
 The native DLL rejects:
 
 - non-HTTPS endpoints
-- HTTPS responses whose leaf certificate SHA-256 hash does not match one of the configured pins
+- HTTPS responses whose leaf certificate matches none of the configured pins
